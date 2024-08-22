@@ -58,10 +58,6 @@
         font-family: Verdana, Geneva, Tahoma, sans-serif;
         background-color: #E7E7E7;  
       }
-      .popup-image {
-        width: 100%;
-        hight: auto;
-      }
     </style>  
   </head>  
   <body>  
@@ -107,7 +103,7 @@
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><p class="popup-subava">' + subava + '</p>) // Replace 'description' with the property you want to display
+            .setHTML('<h3 class="popup-name">' + name + '</h3><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
            .addTo(map);  
 }); 
 
