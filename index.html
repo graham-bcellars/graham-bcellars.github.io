@@ -25,7 +25,7 @@
         padding-bottom: 5px;
         padding-left: 5px; 
       }  
-      .mapboxgl-popup-content h3 {
+      .popup-name {
         background: #cc4346;
         color: #fff;
         margin: 0;
@@ -34,7 +34,7 @@
         font-weight: 400;
         margin-top: -15px;
 }
-      .mapboxgl-popup-content h4 {
+      .popup-subava {
         background: #E7E7E7;
         color: #000;
         font-style: italic;
@@ -84,15 +84,14 @@
 });
         map.on('click', 'vineyard-map', function (e) {
             map.getCanvas().style.cursor = 'pointer';  
-  const properties = e.event.features[0].properties;  
-  const coordinates = new mapboxgl.LngLat(properties.longitude, properties.latitude);  
-  
-  const content = `<p><h3>${properties.Name}</h3></p><p><h4>${properties.SubAVA}</h4></p>`;  
-  
-  const popup = new mapboxgl.Popup()
-    .setLngLat(coordinates)
-    .setHTML(content)
-    .addTo(map);  
+            var coordinates = e.features[0].geometry.coordinates.slice();
+            var name = e.features[0].properties.Name;
+            var subava = e.features[0].properties.SubAVA;
+            
+            new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML('<h3 class="popup-name">' + name + '</h3><p> class="popup-subava"> + subava + </p>') // Replace 'description' with the property you want to display
+           .addTo(map);  
 }); 
 
     });
