@@ -84,7 +84,7 @@
 });
         map.on('click', 'vineyard-map', function (e) {
             map.getCanvas().style.cursor = 'pointer';  
-  const properties = event.features[0].properties;  
+  const properties = e.event.features[0].properties;  
   const coordinates = new mapboxgl.LngLat(properties.longitude, properties.latitude);  
   
   const content = `<p><h3>${properties.Name}</h3></p><p><h4>${properties.SubAVA}</h4></p>`;  
