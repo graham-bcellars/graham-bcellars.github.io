@@ -29,9 +29,9 @@
         background: #cc4346;
         color: #fff;
         margin: 0;
-        padding: 10px;
+        padding: 0px;
         border-radius: 3px 3px 0 0;
-        font-weight: 700;
+        font-weight: 400;
         margin-top: -15px;
 }
       .mapboxgl-popup-content {
@@ -84,7 +84,7 @@
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
             .setHTML(
-              '<h3>name</h3><br>(subava)') // Replace 'description' with the property you want to display
+              <h3>name</h3><br> +'('+ subava +')') // Replace 'description' with the property you want to display
            .addTo(map);
 });
 
