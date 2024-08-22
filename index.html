@@ -58,6 +58,10 @@
         font-family: Verdana, Geneva, Tahoma, sans-serif;
         background-color: #E7E7E7;  
       }
+      .popup-image {
+        width: 100%;
+        hight: auto;
+      }
     </style>  
   </head>  
   <body>  
@@ -100,10 +104,11 @@
             var coordinates = e.features[0].geometry.coordinates.slice();
             var name = e.features[0].properties.Name;
             var subava = e.features[0].properties.SubAVA;
+            var image = e.features[0].properties.Image;
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
+            .setHTML('<h3 class="popup-name">' + name + '</h3><p class="popup-subava">' + subava + '</p><p>'<img class="popup-image" src="' + image + '" />') // Replace 'description' with the property you want to display
            .addTo(map);  
 }); 
 
