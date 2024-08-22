@@ -34,6 +34,12 @@
         font-weight: 400;
         margin-top: -15px;
 }
+      .mapboxgl-popup-content h4 {
+        background: #E7E7E7;
+        color: #000;
+        font-style: italic;
+      }
+        
       .mapboxgl-popup-content {
         text-align: center;
         font-family: Verdana, Geneva, Tahoma, sans-serif;
@@ -83,7 +89,7 @@
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML(<h3>'name'</h3> + '<br>'+ subava +'') // Replace 'description' with the property you want to display
+            .setHTML(`<h3>${currentFeature.properties.Name}</h3><h4>${currentFeature.properties.SubAVA}</h4>`
            .addTo(map);
 });
 
