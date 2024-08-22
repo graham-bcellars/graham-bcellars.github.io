@@ -83,15 +83,17 @@
     }
 });
         map.on('click', 'vineyard-map', function (e) {
-            var coordinates = e.features[0].geometry.coordinates.slice();
-            var name = e.features[0].properties.Name;
-            var subava = e.features[0].properties.SubAVA;
-            
-            new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML(`<h3>${properties.Name}</h3><h4>${properties.SubAVA}</h4>`
-           .addTo(map);
-});
+            map.getCanvas().style.cursor = 'pointer';  
+  const properties = event.features[0].properties;  
+  const coordinates = new mapboxgl.LngLat(properties.longitude, properties.latitude);  
+  
+  const content = `<p><h3>${properties.Name}</h3></p><p><h4>${properties.SubAVA}</h4></p>`;  
+  
+  const popup = new mapboxgl.Popup()
+    .setLngLat(coordinates)
+    .setHTML(content)
+    .addTo(map);  
+}); 
 
     });
     
