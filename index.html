@@ -112,11 +112,12 @@
             var coordinates = e.features[0].geometry.coordinates.slice();
             var name = e.features[0].properties.Name;
             var subava = e.features[0].properties.SubAVA;
+            var ava = e.features[0].properties.AVA;
             var varietal1 = e.features[0].properties.Varietal1;
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><br><p>AMERICAN VITICULTURAL AREA</p><hr style="width: 66%"><p class="popup-subava">' + subava + '</p><p class="popup-varietal">' + varietal1 + '</p>') // Replace 'description' with the property you want to display
+            .setHTML('<h3 class="popup-name">' + name + '</h3><br><p>AMERICAN VITICULTURAL AREA</p><hr style="width: 66%"><p class="popup-subava">' + subava + ', ' + ava + '</p><p class="popup-varietal">' + Varietal1 + '</p>') // Replace 'description' with the property you want to display
            .addTo(map);  
 }); 
 
