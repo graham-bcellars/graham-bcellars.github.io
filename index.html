@@ -49,6 +49,11 @@
         font-size: 18px;
         margin-top: -15px;
 }
+      .popup-avatitle {
+        font-size: 16px;
+        font-style: bold;
+        font-family: "Georgia", Times, serif;
+      }
       .popup-subava {
         background: #E7E7E7;
         color: #000;
@@ -106,7 +111,7 @@
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><hr style="width:50%"><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
+            .setHTML('<h3 class="popup-name">' + name + '</h3><br><hr style="width:75%"><p>American Viticultural Area</p><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
            .addTo(map);  
 }); 
 
