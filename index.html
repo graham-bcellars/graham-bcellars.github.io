@@ -111,13 +111,14 @@
             map.getCanvas().style.cursor = 'pointer';  
             var coordinates = e.features[0].geometry.coordinates.slice();
             var name = e.features[0].properties.Name;
-            var subava = e.features[0].properties.SubAVA;
-            var ava = e.features[0].properties.AVA;
-            var varietal1 = e.features[0].properties.Varietal1;
+            var subava = e.features[0].properties.SubAVA || '';
+            var ava = e.features[0].properties.AVA || '';
+            var varietal1 = e.features[0].properties.Varietal1 || '';
+            var popupContent - '<div class="popup-name">name: ${{name}}</div><br><hr style="width: 66%"><div class="popup-subava">subava: ${{subava}}</div>,<div class="popup-subava">ava: ${{ava}}</div>
             
             new mapboxgl.Popup()
             .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><br><p>AMERICAN VITICULTURAL AREA</p><hr style="width: 66%"><p class="popup-subava">' + subava + ' ' + ava + '</p><p class="popup-varietal">' + Varietal1 + '</p>') // Replace 'description' with the property you want to display
+            .setHTML(popupContent)
            .addTo(map);  
 }); 
 
