@@ -41,10 +41,6 @@
         left: 0px;
     }
 
-    .flex-center.right {
-        right: 0px;
-    }
-
     .sidebar-content {
         position: absolute;
         width: 95%;
@@ -68,10 +64,6 @@
         right: -1.5em;
     }
 
-    .sidebar-toggle.right {
-        left: -1.5em;
-    }
-
     .sidebar-toggle:hover {
         color: #0aa1cf;
         cursor: pointer;
@@ -90,10 +82,6 @@
 */
     .left.collapsed {
         transform: translateX(-295px);
-    }
-
-    .right.collapsed {
-        transform: translateX(295px);
     }
 
       .mapboxgl-popup {
@@ -151,14 +139,6 @@
             Left Sidebar
             <div class="sidebar-toggle rounded-rect left" onclick="toggleSidebar('left')">
                 &rarr;
-            </div>
-        </div>
-    </div>
-    <div id="right" class="sidebar flex-center right collapsed">
-        <div class="sidebar-content rounded-rect flex-center">
-            Right Sidebar
-            <div class="sidebar-toggle rounded-rect right" onclick="toggleSidebar('right')">
-                &larr;
             </div>
         </div>
     </div>
