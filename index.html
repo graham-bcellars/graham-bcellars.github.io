@@ -11,9 +11,12 @@
         margin: 0;  
         padding: 0;  
       }
+      #map { position: absolute; top: 0; bottom: 0; width: 100%
+           }
           </style>  
   </head>  
   <body>
+    <style>
     #sidebar {
       position: fixed;
       left: 0;
@@ -26,13 +29,7 @@
     #sidebar.expanded {
       transform: translateX(0);
 }
-      #map {  
-        position: absolute;  
-        right: 0;
-        top: 0;
-        bottom: 0;
-        width: 80%;  
-      }
+    
       .mapboxgl-popup {
         max-width: 80%;
         hight: 75px;
@@ -80,7 +77,7 @@
         text-align: center;
         color: #ddd
       }
-  
+  </style>
      <div id="sidebar">
     </div>  
     <script>  
