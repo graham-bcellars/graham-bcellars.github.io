@@ -11,7 +11,68 @@
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }  
     </style>  
     </head>  
-    <body>  
+    <body>
+    <style>  
+      .rounded-rect {
+        background: white;
+        border-radius: 10px;
+        box-shadow: 0 0 50px -25px black;
+    }
+
+    .flex-center {
+        position: absolute;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .flex-center.left {
+        left: 0px;
+    }
+
+    .sidebar-content {
+        position: absolute;
+        width: 95%;
+        height: 95%;
+        font-family: Arial, Helvetica, sans-serif;
+        font-size: 32px;
+        color: gray;
+    }
+
+    .sidebar-toggle {
+        position: absolute;
+        width: 1.3em;
+        height: 1.3em;
+        overflow: visible;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
+    .sidebar-toggle.left {
+        right: -1.5em;
+    }
+
+    .sidebar-toggle:hover {
+        color: #0aa1cf;
+        cursor: pointer;
+    }
+
+    .sidebar {
+        transition: transform 1s;
+        z-index: 1;
+        width: 300px;
+        height: 100%;
+    }
+
+    /*
+  The sidebar styling has them "expanded" by default, we use CSS transforms to push them offscreen
+  The toggleSidebar() function removes this class from the element in order to expand it.
+*/
+    .left.collapsed {
+        transform: translateX(-295px);
+    }
+
       p {
         margin-bottom: 10px;
         line-height: 1.5em;
@@ -66,7 +127,17 @@
       }
     </style>  
 
-    <div id="map"></div>  
+    <div id="map">
+      <div id="left" class="sidebar flex-center left collapsed">
+        <div class="sidebar-content rounded-rect flex-center">
+            Left Sidebar
+            <div class="sidebar-toggle rounded-rect left" onclick="toggleSidebar('left')">
+                &rarr;
+            </div>
+        </div>
+    </div>
+    </div> 
+      
     <script>  
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
       let MAX_PITCH = 80
@@ -83,8 +154,24 @@
       });  
      
       map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-     
+      
+     function toggleSidebar(id) {
+        const elem = document.getElementById(id);
+        // Add or remove the 'collapsed' CSS class from the sidebar element.
+        // Returns boolean "true" or "false" whether 'collapsed' is in the class list.
+        const collapsed = elem.classList.toggle('collapsed');
+        const padding = {};
+        // 'id' is 'right' or 'left'. When run at start, this object looks like: '{left: 300}';
+        padding[id] = collapsed ? 0 : 300; // 0 if collapsed, 300 px if not. This matches the width of the sidebars in the .sidebar CSS class.
+        // Use `map.easeTo()` with a padding option to adjust the map's center accounting for the position of sidebars.
+        map.easeTo({
+            padding: padding,
+            duration: 1000 // In ms. This matches the CSS transition duration property.
+        });
+    }
+      
       map.on('load', () => {
+        toggleSidebar('left');
         
         // ADD TILESET SOURCE FOR VINEYARD INFO
         map.addSource('vineyard-map', {
