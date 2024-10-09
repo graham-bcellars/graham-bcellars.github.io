@@ -33,6 +33,12 @@
         color: #ccc;  
         background-color: #fff;
         }
+      @media (max-width: 767px) {
+        .vineyard-list {
+            width: 100%;
+            height: auto;
+        }
+      }
       #map {  
         position: absolute;  
         right: 0;
@@ -108,6 +114,20 @@
         maxPitch: MAX_PITCH,
         minpitch: 1  
       });  
+      var isCollapsed = false;
+      if (document.body.clientWidth <= 767) {
+        isCollapsed = true;
+    }
+      var sidebar = L.control.sidebar('vineyard-list', {
+        closeButton: true,
+        position: 'left'
+      }).addTo(map);
+
+    if (isCollapsed) {
+      sidebar.hide();
+    } else {
+      sidebar.show();
+    }
      
       map.addControl(new mapboxgl.NavigationControl(), 'top-right');
      
