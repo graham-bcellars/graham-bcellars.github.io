@@ -1,30 +1,19 @@
-<!doctype html>  
-<html lang="en">  
-  <head>  
-    <meta charset="utf-8" />  
-    <title>Your Map</title>  
-    <meta name="viewport" content="width=device-width, initial-scale=1" />  
-    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>  
-    <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" />  
-    <style>  
-      body {  
-        margin: 0;  
-        padding: 0;  
-      }
-      #map { position: absolute; top: 0; bottom: 0; width: 100%; }
-      </style>
-  </head>
-  <body>
-  <style>
-      p {
-        margin-bottom: 10px;
-        line-height: 1.5em;
-      }
-      hr {
-        margin-top: 10px;
-        margin-bottom: 1px;
-      }
-   .rounded-rect {
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title></title>
+<meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+<link href="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css" rel="stylesheet">
+<script src="https://api.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
+<style>
+body { margin: 0; padding: 0; }
+#map { position: absolute; top: 0; bottom: 0; width: 100%; }
+</style>
+</head>
+<body>
+<style>
+    .rounded-rect {
         background: white;
         border-radius: 10px;
         box-shadow: 0 0 50px -25px black;
@@ -39,6 +28,10 @@
 
     .flex-center.left {
         left: 0px;
+    }
+
+    .flex-center.right {
+        right: 0px;
     }
 
     .sidebar-content {
@@ -64,6 +57,10 @@
         right: -1.5em;
     }
 
+    .sidebar-toggle.right {
+        left: -1.5em;
+    }
+
     .sidebar-toggle:hover {
         color: #0aa1cf;
         cursor: pointer;
@@ -84,57 +81,13 @@
         transform: translateX(-295px);
     }
 
-      .mapboxgl-popup {
-        max-width: 80%;
-        hight: 75px;
-        padding-top: 5px;
-        padding-right: 5px;
-        padding-bottom: 5px;
-        padding-left: 5px; 
-      }  
-      .mapboxgl-popup-close-button {
-        display: none;
-}
-      .mapboxgl-popup-tip{
-        display: none;
-      }
-      .popup-name {
-        background: #fff;
-        color: #cc4346;
-        padding: 3px 3px 3px 3px;
-        border-radius: 3px 3px 0 0;
-        border-weight: 2px;
-        border-color: #cc4346;
-        font-weight: 400;
-        font-size: 18px;
-        margin-top: -15px;
-        margin-bottom: -10px
-}
-      .popup-avatitle {
-        font-size: 18px;
-        font-style: bold;
-        font-family: "Georgia", Times, serif;
-      }
-      .popup-subava {
-        background: #E7E7E7;
-        color: #000;
-        font-style: italic;
-        font-size: 14px;
-      }
-        
-      .mapboxgl-popup-content {
-        text-align: center;
-        font-family: Verdana, Geneva, Tahoma, sans-serif;
-        background-color: #E7E7E7;  
-      }
-      .h2 { 
-        text-align: center;
-        color: #ddd
-      }
-    </style>  
+    .right.collapsed {
+        transform: translateX(295px);
+    }
+</style>
 
-    <div id="map">
-      <div id="left" class="sidebar flex-center left collapsed">
+<div id="map">
+    <div id="left" class="sidebar flex-center left collapsed">
         <div class="sidebar-content rounded-rect flex-center">
             Left Sidebar
             <div class="sidebar-toggle rounded-rect left" onclick="toggleSidebar('left')">
@@ -142,28 +95,34 @@
             </div>
         </div>
     </div>
-    </div>  
-    <script>  
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
-      let MAX_PITCH = 80
-      const map = new mapboxgl.Map({  
-        container: 'map', 
-        style: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
+    <div id="right" class="sidebar flex-center right collapsed">
+        <div class="sidebar-content rounded-rect flex-center">
+            Right Sidebar
+            <div class="sidebar-toggle rounded-rect right" onclick="toggleSidebar('right')">
+                &larr;
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+	mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
+    const center = [-77.01866, 38.888];
+    const map = new mapboxgl.Map({
+        container: 'map',
         center: [-122.3732662350028,38.44993045349327],
         zoom: 12,
         maxZoom: 18,
         minZoom: 7,
         pitch: 60, 
         maxPitch: MAX_PITCH,
-        minpitch: 1  
-      });  
-      
-     
-      map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-    
-      new mapboxgl.Marker().setLngLat(center).addTo(map);
+        minpitch: 1 
+        style: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
+    });
 
-      function toggleSidebar(id) {
+    new mapboxgl.Marker().setLngLat(center).addTo(map);
+
+    function toggleSidebar(id) {
         const elem = document.getElementById(id);
         // Add or remove the 'collapsed' CSS class from the sidebar element.
         // Returns boolean "true" or "false" whether 'collapsed' is in the class list.
@@ -177,41 +136,11 @@
             duration: 1000 // In ms. This matches the CSS transition duration property.
         });
     }
-      map.on('load', () => {
+
+    map.on('load', () => {
         toggleSidebar('left');
     });
-        
-        // ADD TILESET SOURCE FOR VINEYARD INFO
-        map.addSource('vineyard-map', {
-            type: 'vector',
-            url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-79q6y'
-        });
-        map.addLayer({
-    'id': 'vineyards',
-    'type': 'fill',
-    'source': 'vineyard-map',
-    'paint': {
-        'fill-color': '#888888',
-        'fill-opacity': 0.8
-    }
-});
-        map.on('click', 'vineyard-map', function (e) {
-            map.getCanvas().style.cursor = 'pointer';  
-            var coordinates = e.features[0].geometry.coordinates.slice();
-            var name = e.features[0].properties.Name;
-            var subava = e.features[0].properties.SubAVA;
-            
-            new mapboxgl.Popup()
-            .setLngLat(e.lngLat)
-            .setHTML('<h3 class="popup-name">' + name + '</h3><br><p>AMERICAN VITICULTURAL AREA</p><hr style="width: 66%"><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
-           .addTo(map);  
-}); 
+</script>
 
-    });
-    
-
-
-
-    </script>  
-  </body>  
+</body>
 </html>
