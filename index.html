@@ -19,26 +19,18 @@
         margin-top: 10px;
         margin-bottom: 1px;
       }
-      .vineyard-list {
-        position: absolute;  
-        font-family: sans-serif;  
-        margin-top: 5px;  
-        margin-left: 5px;  
-        padding: 15px 15px 15px 15px;
-        width: 20%;
-        left: 0;
-        border: 2px solid black;  
-        font-size: 20px; 
-        text-align: center;
-        color: #ccc;  
-        background-color: #fff;
-        }
-      @media (max-width: 767px) {
-        .vineyard-list {
-            width: 100%;
-            height: auto;
-        }
-      }
+    #sidebar {
+      position: fixed;
+      left: 0;
+      width: 300px; /* Adjust as needed */
+      height: 100%;
+      /* Add additional styles as needed */
+      transform: translateX(-100%);
+      transition: transform 0.3s ease-out; /* Adjust timing as needed */
+}
+    #sidebar.expanded {
+      transform: translateX(0);
+}
       #map {  
         position: absolute;  
         right: 0;
@@ -96,10 +88,8 @@
     </style>  
   </head>  
   <body>  
-     <div id="vineyard-list">
-        <h2>VINEYARDS</h2>
-    </div>
-    <div id="map"></div>  
+     <div id="sidebar">
+    </div>  
     <script>  
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
       let MAX_PITCH = 80
@@ -114,20 +104,10 @@
         maxPitch: MAX_PITCH,
         minpitch: 1  
       });  
-      var isCollapsed = false;
-      if (document.body.clientWidth <= 767) {
-        isCollapsed = true;
-    }
-      var sidebar = L.control.sidebar('vineyard-list', {
-        closeButton: true,
-        position: 'left'
-      }).addTo(map);
 
-    if (isCollapsed) {
-      sidebar.hide();
-    } else {
-      sidebar.show();
-    }
+      function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('expanded');
+}
      
       map.addControl(new mapboxgl.NavigationControl(), 'top-right');
      
