@@ -137,6 +137,7 @@
         </div>
     </div>
     </div> 
+
       
     <script>  
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
@@ -154,6 +155,85 @@
       });  
      
       map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+    
+    const vineyards = {
+    'type': 'FeatureCollection',
+    'features': [
+{
+  "type": "Feature",
+  "properties": {
+    "Name": "Beckstoffer To Kalon Vineyard",
+    "Property": "Vineyard",
+    "Vineyard Group": "Beckstoffer",
+    "SubAVA": "Oakville",
+    "AVA": "Napa Valley",
+    "Image": "https://graham-bcellars.github.io/assets/img/BV_ToKalon_Dark.jpg",
+    "Varietal 1": "Cabernet Sauvignon",
+    "Varietal 2": "Cabernet Franc"
+  },
+  "geometry": {
+    "coordinates": [
+      [
+        [
+          -122.413429,
+          38.436211
+        ],
+        [
+          -122.411017,
+          38.437533
+        ],
+        [
+          -122.408774,
+          38.438792
+        ],
+        [
+          -122.406215,
+          38.440229
+        ],
+        [
+          -122.405014,
+          38.438899
+        ],
+        [
+          -122.403599,
+          38.437391
+        ],
+        [
+          -122.403961,
+          38.437178
+        ],
+        [
+          -122.403417,
+          38.436619
+        ],
+        [
+          -122.409748,
+          38.433115
+        ],
+        [
+          -122.410099,
+          38.433532
+        ],
+        [
+          -122.410699,
+          38.433141
+        ],
+        [
+          -122.413429,
+          38.436211
+        ]
+      ]
+    ],
+    "type": "Polygon"
+  }
+}
+    ]
+  };
+
+      /* Assign a unique ID to each store */
+vineyards.features.forEach(function (vineyards, i) {
+  vineyards.properties.id = i;
+});
       
      function toggleSidebar(id) {
         const elem = document.getElementById(id);
@@ -169,7 +249,7 @@
             duration: 1000 // In ms. This matches the CSS transition duration property.
         });
     }
-      
+
       map.on('load', () => {
         toggleSidebar('left');
         
@@ -200,9 +280,6 @@
 }); 
 
     });
-    
-
-
 
     </script>  
   </body>  
