@@ -230,13 +230,17 @@
       }
     </style>
 
-    <div class="sidebar">
-      <div class="heading">
-        <h1>Our locations</h1>
-      </div>
-      <div id="listings" class="listings"></div>
+     <div id="map">
+      <div id="left" class="sidebar flex-center left collapsed">
+        <div class="sidebar-content rounded-rect flex-center">
+            Vineyards
+            <div class="sidebar-toggle rounded-rect left" onclick="toggleSidebar('left')">
+                &rarr;
+            </div>
+        </div>
     </div>
-    <div id="map" class="map"></div>
+    </div> 
+
     <script>
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';
       let MAX_PITCH=80
