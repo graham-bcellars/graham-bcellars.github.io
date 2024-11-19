@@ -370,11 +370,11 @@
           link.href = '#';
           link.className = 'title';
           link.id = `link-${store.properties.id}`;
-          link.innerHTML = `${store.properties.address}`;
+          link.innerHTML = `${store.properties.Name}`;
 
           /* Add details to the individual listing. */
           const details = listing.appendChild(document.createElement('div'));
-          details.innerHTML = `${store.properties.city}`;
+          details.innerHTML = `${store.properties.SubAVA}`;
           if (store.properties.phone) {
             details.innerHTML += ` &middot; ${store.properties.phoneFormatted}`;
           }
