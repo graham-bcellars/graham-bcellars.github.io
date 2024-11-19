@@ -187,10 +187,7 @@
     <div id="map" class="map"></div>
     <script>
       mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';
-
-      /**
-       * Add the map to the page
-       */
+      let MAX_PITCH=80
       const map = new mapboxgl.Map({
         container: 'map',
         style: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
@@ -202,7 +199,8 @@
         maxPitch: MAX_PITCH,
         minpitch: 1
       });
-
+     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+      
       const stores = {
         'type': 'FeatureCollection',
         'features': [
