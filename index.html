@@ -4,9 +4,9 @@
     <meta charset="utf-8" />
     <title>Demo: Build a store locator using Mapbox GL JS</title>
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.js"></script>
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.js"></script>
     <link
-      href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.3.0/mapbox-gl.css"
+      href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.7.0/mapbox-gl.css"
       rel="stylesheet"
     />
     <style>
@@ -186,17 +186,21 @@
     </div>
     <div id="map" class="map"></div>
     <script>
-      mapboxgl.accessToken = '{{MAPBOX_ACCESS_TOKEN}}';
+      mapboxgl.accessToken = pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';
 
       /**
        * Add the map to the page
        */
       const map = new mapboxgl.Map({
         container: 'map',
-        style: 'mapbox://styles/mapbox/light-v11',
-        center: [-77.034084142948, 38.909671288923],
-        zoom: 13,
-        scrollZoom: false
+        style: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy'',
+        center: [-122.3732662350028,38.44993045349327],
+        zoom: 12,
+        maxZoom: 18,
+        minZoom: 7,
+        pitch: 60, 
+        maxPitch: MAX_PITCH,
+        minpitch: 1
       });
 
       const stores = {
