@@ -1,250 +1,77 @@
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Demo: Build a store locator using Mapbox GL JS</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
-    <link
-      href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css"
-      rel="stylesheet"
-    />
-    <style>
-      body {
-        color: #404040;
-        font:
-          400 15px/22px 'Source Sans Pro',
-          'Helvetica Neue',
-          sans-serif;
-        margin: 0;
-        padding: 0;
-        -webkit-font-smoothing: antialiased;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-
-            .rounded-rect {
-        background: white;
-        border-radius: 10px;
-        box-shadow: 0 0 50px -25px black;
-    }
-
-    .flex-center {
-        position: absolute;
-        justify-content: center;
-        display: flex;
-        align-items: center;
-    }
-
-    .flex-center.left {
-        left: 0px;
-    }
-
-    .sidebar-content {
-        position: absolute;
-        width: 95%;
-        height: 95%;
-        font-family: Arial, Helvetica, sans-serif;
-        font-size: 32px;
-        color: gray;
-    }
-
-    .sidebar-toggle {
-        position: absolute;
-        width: 1.3em;
-        height: 1.3em;
-        overflow: visible;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-    }
-
-    .sidebar-toggle.left {
-        right: -1.5em;
-    }
-
-    .sidebar-toggle:hover {
-        color: #cc4346;
-        cursor: pointer;
-    }
-
-    .sidebar {
-        transition: transform 1s;
-        z-index: 1;
-        width: 300px;
-        height: 100%;
-    }
-
-    /*
-  The sidebar styling has them "expanded" by default, we use CSS transforms to push them offscreen
-  The toggleSidebar() function removes this class from the element in order to expand it.
-*/
-    .left.collapsed {
-        transform: translateX(-295px);
-    }
-
+<!doctype html>  
+<html lang="en">  
+  <head>  
+    <meta charset="utf-8" />  
+    <title>B Cellars Vineyard Map</title>  
+    <meta name="viewport" content="width=device-width, initial-scale=1" />  
+    <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>  
+    <link href="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.css" rel="stylesheet" />  
+    <style>  
+    body { margin: 0; padding: 0; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }  
+    </style>  
+    </head>  
+    <body>  
       p {
         margin-bottom: 10px;
         line-height: 1.5em;
       }
-
-      .map {
-        position: absolute;
-        left: 33.3333%;
-        width: 66.6666%;
-        top: 0;
-        bottom: 0;
+      hr {
+        margin-top: 10px;
+        margin-bottom: 1px;
       }
 
-      h1 {
-        font-size: 22px;
-        margin: 0;
-        font-weight: 400;
-        line-height: 20px;
-        padding: 20px 2px;
-      }
-
-      a {
-        color: #404040;
-        text-decoration: none;
-      }
-
-      a:hover {
-        color: #101010;
-      }
-
-      .heading {
-        background: #fff;
-        border-bottom: 1px solid #eee;
-        min-height: 60px;
-        line-height: 60px;
-        padding: 0 10px;
-        background-color: #cc4346;
-        color: #fff;
-      }
-
-      .listings {
-        height: 100%;
-        overflow: auto;
-        padding-bottom: 60px;
-      }
-
-      .listings .item {
-        display: block;
-        border-bottom: 1px solid #eee;
-        padding: 10px;
-        text-decoration: none;
-      }
-
-      .listings .item:last-child {
-        border-bottom: none;
-      }
-
-      .listings .item .title {
-        display: block;
-        color: #cc4346;
-        font-weight: 700;
-      }
-
-      .listings .item .title small {
-        font-weight: 400;
-      }
-
-      .listings .item.active .title,
-      .listings .item .title:hover {
-        color: #cc4346;
-      }
-
-      .listings .item.active {
-        background-color: #f8f8f8;
-      }
-
-      ::-webkit-scrollbar {
-        width: 3px;
-        height: 3px;
-        border-left: 0;
-        background: rgb(0 0 0 / 10%);
-      }
-
-      ::-webkit-scrollbar-track {
-        background: none;
-      }
-
-      ::-webkit-scrollbar-thumb {
-        background: #00853e;
-        border-radius: 0;
-      }
-
-      .marker {
-        border: none;
-        cursor: pointer;
-        height: 56px;
-        width: 56px;
-        background-image: url('https://docs.mapbox.com/demos/building-a-store-locator/marker.png');
-      }
-
-      /* Marker tweaks */
       .mapboxgl-popup {
-        padding-bottom: 50px;
-      }
-
+        max-width: 80%;
+        hight: 75px;
+        padding-top: 5px;
+        padding-right: 5px;
+        padding-bottom: 5px;
+        padding-left: 5px; 
+      }  
       .mapboxgl-popup-close-button {
         display: none;
+}
+      .mapboxgl-popup-tip{
+        display: none;
       }
-
-      .mapboxgl-popup-content {
-        font:
-          400 15px/22px 'Source Sans Pro',
-          'Helvetica Neue',
-          sans-serif;
-        padding: 0;
-        width: 180px;
-      }
-
-      .mapboxgl-popup-content h3 {
-        background: #91c949;
-        color: #fff;
-        margin: 0;
-        padding: 10px;
+      .popup-name {
+        background: #fff;
+        color: #cc4346;
+        padding: 3px 3px 3px 3px;
         border-radius: 3px 3px 0 0;
-        font-weight: 700;
-        margin-top: -15px;
-      }
-
-      .mapboxgl-popup-content h4 {
-        margin: 0;
-        padding: 10px;
+        border-weight: 2px;
+        border-color: #cc4346;
         font-weight: 400;
+        font-size: 18px;
+        margin-top: -15px;
+        margin-bottom: -10px
+}
+      .popup-avatitle {
+        font-size: 18px;
+        font-style: bold;
+        font-family: "Georgia", Times, serif;
       }
+      .popup-subava {
+        background: #E7E7E7;
+        color: #000;
+        font-style: italic;
+        font-size: 14px;
+      }
+        
+      .mapboxgl-popup-content {
+        text-align: center;
+        font-family: Verdana, Geneva, Tahoma, sans-serif;
+        background-color: #E7E7E7;  
+      }
+    </style>  
 
-      .mapboxgl-popup-content div {
-        padding: 10px;
-      }
-
-      .mapboxgl-popup-anchor-top > .mapboxgl-popup-content {
-        margin-top: 15px;
-      }
-
-      .mapboxgl-popup-anchor-top > .mapboxgl-popup-tip {
-        border-bottom-color: #91c949;
-      }
-    </style>
-  </head>
-  <body>
-    <div class="sidebar">
-      <div class="heading">
-        <h1>Our locations</h1>
-      </div>
-      <div id="listings" class="listings"></div>
-    </div>
-    <div id="map" class="map"></div>
-    <script>
-      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';
-      let MAX_PITCH=80
-      const map = new mapboxgl.Map({
-        container: 'map',
+    <div id="map"></div>  
+    <script>  
+      mapboxgl.accessToken = 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw';  
+      let MAX_PITCH = 80
+      const map = new mapboxgl.Map({  
+        container: 'map', 
         style: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
         center: [-122.3732662350028,38.44993045349327],
         zoom: 12,
@@ -252,235 +79,44 @@
         minZoom: 7,
         pitch: 60, 
         maxPitch: MAX_PITCH,
-        minpitch: 1
-      });
-     map.addControl(new mapboxgl.NavigationControl(), 'top-right');
-      
-      const stores = {
-        'type': 'FeatureCollection',
-        'features': [
-          {
-            'type': 'Feature',
-            'geometry': {
-              'type': 'Polygon',
-              'coordinates': [
-      [
-        [
-          -122.413429,
-          38.436211
-        ],
-        [
-          -122.411017,
-          38.437533
-        ],
-        [
-          -122.408774,
-          38.438792
-        ],
-        [
-          -122.406215,
-          38.440229
-        ],
-        [
-          -122.405014,
-          38.438899
-        ],
-        [
-          -122.403599,
-          38.437391
-        ],
-        [
-          -122.403961,
-          38.437178
-        ],
-        [
-          -122.403417,
-          38.436619
-        ],
-        [
-          -122.409748,
-          38.433115
-        ],
-        [
-          -122.410099,
-          38.433532
-        ],
-        [
-          -122.410699,
-          38.433141
-        ],
-        [
-          -122.413429,
-          38.436211
-        ]
-      ]
-    ],
-            },
-            'properties': {
-            'Name': "Beckstoffer To Kalon Vineyard",
-          'Property': "Vineyard",
-          'Vineyard Group': "Beckstoffer",
-          'SubAVA': "Oakville",
-          'AVA': "Napa Valley",
-          'Image': "https://graham-bcellars.github.io/assets/img/BV_ToKalon_Dark.jpg",
-          'Varietal 1': "Cabernet Sauvignon",
-          'Varietal 2': "Cabernet Franc"
-            }          
-          }
-        ]
-      };
-
-      /**
-       * Assign a unique id to each store. You'll use this `id`
-       * later to associate each point on the map with a listing
-       * in the sidebar.
-       */
-      stores.features.forEach((store, i) => {
-        store.properties.id = i;
-      });
-
-      /**
-       * Wait until the map loads to make changes to the map.
-       */
+        minpitch: 1  
+      });  
+     
+      map.addControl(new mapboxgl.NavigationControl(), 'top-right');
+     
       map.on('load', () => {
-        /**
-         * This is where your '.addLayer()' used to be, instead
-         * add only the source without styling a layer
-         */
-        map.addSource('places', {
-          'type': 'geojson',
-          'data': stores
+        
+        // ADD TILESET SOURCE FOR VINEYARD INFO
+        map.addSource('vineyard-map', {
+            type: 'vector',
+            url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-79q6y'
         });
+        map.addLayer({
+    'id': 'vineyards',
+    'type': 'fill',
+    'source': 'vineyard-map',
+    'paint': {
+        'fill-color': '#888888',
+        'fill-opacity': 0.8
+    }
+});
+        map.on('click', 'vineyard-map', function (e) {
+            map.getCanvas().style.cursor = 'pointer';  
+            var coordinates = e.features[0].geometry.coordinates.slice();
+            var name = e.features[0].properties.Name;
+            var subava = e.features[0].properties.SubAVA;
+            
+            new mapboxgl.Popup()
+            .setLngLat(e.lngLat)
+            .setHTML('<h3 class="popup-name">' + name + '</h3><br><p>AMERICAN VITICULTURAL AREA</p><hr style="width: 66%"><p class="popup-subava">' + subava + '</p>') // Replace 'description' with the property you want to display
+           .addTo(map);  
+}); 
 
-        /**
-         * Add all the things to the page:
-         * - The location listings on the side of the page
-         * - The markers onto the map
-         */
-        buildLocationList(stores);
-        addMarkers();
-      });
+    });
+    
 
-      /**
-       * Add a marker to the map for every store listing.
-       **/
-      function addMarkers() {
-        /* For each feature in the GeoJSON object above: */
-        for (const marker of stores.features) {
-          /* Create a div element for the marker. */
-          const el = document.createElement('div');
-          /* Assign a unique `id` to the marker. */
-          el.id = `marker-${marker.properties.id}`;
-          /* Assign the `marker` class to each marker for styling. */
-          el.className = 'marker';
 
-          /**
-           * Create a marker using the div element
-           * defined above and add it to the map.
-           **/
-          new mapboxgl.Marker(el, { offset: [0, -23] })
-            .setLngLat(marker.geometry.coordinates)
-            .addTo(map);
 
-          /**
-           * Listen to the element and when it is clicked, do three things:
-           * 1. Fly to the point
-           * 2. Close all other popups and display popup for clicked store
-           * 3. Highlight listing in sidebar (and remove highlight for all other listings)
-           **/
-          el.addEventListener('click', (e) => {
-            /* Fly to the point */
-            flyToStore(marker);
-            /* Close all other popups and display popup for clicked store */
-            createPopUp(marker);
-            /* Highlight listing in sidebar */
-            const activeItem = document.getElementsByClassName('active');
-            e.stopPropagation();
-            if (activeItem[0]) {
-              activeItem[0].classList.remove('active');
-            }
-            const listing = document.getElementById(
-              `listing-${marker.properties.id}`
-            );
-            listing.classList.add('active');
-          });
-        }
-      }
-
-      /**
-       * Add a listing for each store to the sidebar.
-       **/
-      function buildLocationList(stores) {
-        for (const store of stores.features) {
-          /* Add a new listing section to the sidebar. */
-          const listings = document.getElementById('listings');
-          const listing = listings.appendChild(document.createElement('div'));
-          /* Assign a unique `id` to the listing. */
-          listing.id = `listing-${store.properties.id}`;
-          /* Assign the `item` class to each listing for styling. */
-          listing.className = 'item';
-
-          /* Add the link to the individual listing created above. */
-          const link = listing.appendChild(document.createElement('a'));
-          link.href = '#';
-          link.className = 'title';
-          link.id = `link-${store.properties.id}`;
-          link.innerHTML = `${store.properties.Name}`;
-
-          /* Add details to the individual listing. */
-          const details = listing.appendChild(document.createElement('div'));
-          details.innerHTML = `${store.properties.SubAVA}`;
-          if (store.properties.phone) {
-            details.innerHTML += ` &middot; ${store.properties.phoneFormatted}`;
-          }
-
-          /**
-           * Listen to the element and when it is clicked, do four things:
-           * 1. Update the `currentFeature` to the store associated with the clicked link
-           * 2. Fly to the point
-           * 3. Close all other popups and display popup for clicked store
-           * 4. Highlight listing in sidebar (and remove highlight for all other listings)
-           **/
-          link.addEventListener('click', function () {
-            for (const feature of stores.features) {
-              if (this.id === `link-${feature.properties.id}`) {
-                flyToStore(feature);
-                createPopUp(feature);
-              }
-            }
-            const activeItem = document.getElementsByClassName('active');
-            if (activeItem[0]) {
-              activeItem[0].classList.remove('active');
-            }
-            this.parentNode.classList.add('active');
-          });
-        }
-      }
-
-      /**
-       * Use Mapbox GL JS's `flyTo` to move the camera smoothly
-       * a given center point.
-       **/
-      function flyToStore(currentFeature) {
-        map.flyTo({
-          center: currentFeature.geometry.coordinates,
-          zoom: 15
-        });
-      }
-
-      /**
-       * Create a Mapbox GL JS `Popup`.
-       **/
-      function createPopUp(currentFeature) {
-        const popUps = document.getElementsByClassName('mapboxgl-popup');
-        if (popUps[0]) popUps[0].remove();
-        const popup = new mapboxgl.Popup({ closeOnClick: false })
-          .setLngLat(currentFeature.geometry.coordinates)
-          .setHTML(
-            `<h3>Sweetgreen</h3><h4>${currentFeature.properties.address}</h4>`
-          )
-          .addTo(map);
-      }
-    </script>
-  </body>
+    </script>  
+  </body>  
 </html>
