@@ -36,6 +36,8 @@
       grid-template-rows: 100%;
       gap: 0;
     }
+    /* When collapsed, sidebar column becomes 0 and map takes the full width */
+    .app.sidebar-collapsed { grid-template-columns: 0 1fr; }
     #map { position: relative; height: 100%; width: 100%; }
     /* Sidebar */
     .sidebar {
@@ -71,6 +73,531 @@
       border: 1px solid #273049; border-radius: 999px; padding: 8px 12px;
       box-shadow: var(--shadow);
     }
+    .drawer {
+      position: fixed; left: 0; right: 0; bottom: 0;
+      height: 56px; /* closed height */
+      background: var(--panel);
+      border-top:1px solid var(--border);
+      box-shadow: 0 -12px 30px rgba(0,0,0,.35);
+      border-top-left-radius: 16px; border-top-right-radius: 16px;
+      transform: translateY(100%);
+      transition: transform .28s ease;
+      z-index: 2;
+      display:flex; flex-direction:column;
+    }
+    .drawer.open { transform: translateY(0); }
+    .drawer .handle {
+      display:flex; justify-content:center; padding: 8px; cursor:pointer;
+    }
+    .drawer .handle .pill {
+      width: 48px; height: 5px; border-radius:99px; background:#273049;
+    }
+    .drawer .content {
+      padding: 8px 12px 12px 12px;
+      overflow:auto; flex:1; min-height: 40vh; max-height: 70vh;
+    }
+    .drawer .header { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:0 4px 8px 4px; }
+    .drawer .search { margin: 6px 0 10px; }
+    .drawer .list { padding-bottom: max(10px, var(--safe-bottom)); }
+    .hide-on-mobile { display: block; }
+    .show-on-mobile { display: none; }
+    .sidebar-toggle-fab {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      z-index: 5;
+      display: none;
+    }
+    .sidebar-toggle-fab .btn {
+      padding: 8px 12px;
+      box-shadow: 0 6px 20px rgba(0,0,0,.35);
+    }
+    /* Map popup */
+    .mapboxgl-popup { font: 14px/1.25 system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial; }
+    .mapboxgl-popup-content { border-radius: 12px; padding: 10px 12px; background:#0f1219; color: var(--text); border:1px solid #273049; text-align:left; }
+    .mapboxgl-popup-close-button { color: var(--text); }
+
+    /* Tablet/desktop: sidebar + map */
+    @media (max-width: 900px) {
+      .app { grid-template-columns: 1fr; }
+      .sidebar { display:none; }
+      .hide-on-mobile { display:none; }
+      .show-on-mobile { display:block; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <aside class="sidebar" aria-label="Vineyard navigation" id="sidebar">
+      <div class="brand">
+        <h1>Vineyard Sources</h1>
+        <div class="controls">
+          <button id="fit-all" class="btn" title="Zoom to all vineyards">Fit all</button>
+          <button id="refresh" class="btn secondary" title="Rebuild list from tiles">Refresh list</button>
+          <button id="collapse" class="btn secondary" title="Hide/show sidebar">Collapse</button>
+        </div>
+      </div>
+      <div class="search">
+        <input id="filter" type="search" placeholder="Filter vineyards… (name, AVA, notes)" aria-label="Filter vineyards" />
+      </div>
+      <div class="count" id="count" aria-live="polite">—</div>
+      <div class="list" id="list" role="list"></div>
+    </aside>
+
+    <div id="map" role="region" aria-label="Map of vineyard locations">
+      <div class="sidebar-toggle-fab" id="sidebar-fab">
+        <button class="btn" id="expand-sidebar" title="Show sidebar">Show sidebar</button>
+      </div>
+    </div>
+
+    <!-- Mobile drawer -->
+    <div class="drawer-toggle show-on-mobile">
+      <button class="drawer-button" id="drawer-button" aria-expanded="false" aria-controls="mobile-drawer">Vineyards</button>
+    </div>
+    <section class="drawer" id="mobile-drawer" aria-label="Vineyard list drawer">
+      <div class="handle" id="drawer-handle" aria-hidden="true"><div class="pill"></div></div>
+      <div class="content">
+        <div class="header">
+          <div class="count" id="m-count">—</div>
+          <div class="controls"><button id="m-fit-all" class="btn">Fit all</button></div>
+        </div>
+        <div class="search"><input id="m-filter" type="search" placeholder="Search vineyards…" aria-label="Search vineyards" /></div>
+        <div class="list" id="m-list" role="list"></div>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // =========================
+    // Configuration
+    // =========================
+    const CONFIG = {
+      accessToken: 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw', // TODO: replace
+      styleUrl: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy', // TODO: replace
+      // Option A: polygon vector tileset for vineyard boundaries (set both or leave sourceLayer empty to skip)
+      vector: { url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-79q6y', sourceLayer: 'vineyard-map' }, // TODO: set source-layer or leave '' to skip
+      // Option B: points GeoJSON (recommended if you don't have a polygon tileset)
+      pointsGeoJSON: null, // Or set to a URL string like '/data/vineyards_points.geojson'
+      // UI
+      defaultCenter: [-122.37, 38.45],
+      defaultZoom: 10
+    };
+
+    // =========================
+    // Map init
+    // =========================
+    mapboxgl.accessToken = CONFIG.accessToken;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: CONFIG.styleUrl,
+      center: CONFIG.defaultCenter,
+      zoom: CONFIG.defaultZoom,
+      cooperativeGestures: true,
+      attributionControl: true,
+      pitch: 50,
+      maxPitch: 80
+    });
+    map.addControl(new mapboxgl.NavigationControl({showCompass: true}), 'top-right');
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+    map.addControl(new mapboxgl.GeolocateControl({ positionOptions: { enableHighAccuracy: true }, trackUserLocation: false }), 'top-right');
+
+    // =========================
+    // State
+    // =========================
+    const prefersReduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const listEl = document.getElementById('list');
+    const countEl = document.getElementById('count');
+    const filterEl = document.getElementById('filter');
+    const mListEl = document.getElementById('m-list');
+    const mCountEl = document.getElementById('m-count');
+    const mFilterEl = document.getElementById('m-filter');
+    const drawerButton = document.getElementById('drawer-button');
+    const drawerEl = document.getElementById('mobile-drawer');
+    const fitAllBtn = document.getElementById('fit-all');
+    const mFitAllBtn = document.getElementById('m-fit-all');
+    const collapseBtn = document.getElementById('collapse');
+    let allPoints = [];         // Array<Feature<Point>>
+    let filteredPoints = [];    // Array<Feature<Point>>
+    const popup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true });
+
+    // Demo fallback data if you haven't wired in a tileset/geojson yet
+    const demo = {
+      type: 'FeatureCollection',
+      features: [
+        { type: 'Feature', properties: { id: 'to-kalon', Name: 'To Kalon Vineyard', SubAVA: 'Oakville AVA, Napa Valley', Facts: 'Historic site; well-drained alluvial fans; Cabernet Sauvignon', URL: 'https://example.com/to-kalon' }, geometry: { type: 'Point', coordinates: [-122.4139, 38.4387] } },
+        { type: 'Feature', properties: { id: 'stagecoach', Name: 'Stagecoach Vineyard', SubAVA: 'Atlas Peak AVA, Napa Valley', Facts: 'Volcanic tuff/red soils; mountain fruit', URL: 'https://example.com/stagecoach' }, geometry: { type: 'Point', coordinates: [-122.239, 38.396] } },
+        { type: 'Feature', properties: { id: 'sangiacomo', Name: 'Sangiacomo Vineyard', SubAVA: 'Carneros AVA, Sonoma', Facts: 'Cool-climate; Chardonnay & Pinot Noir', URL: 'https://example.com/sangiacomo' }, geometry: { type: 'Point', coordinates: [-122.442, 38.240] } }
+      ]
+    };
+
+    // =========================
+    // Helpers
+    // =========================
+    function announceCount(listTarget, n){
+      listTarget.textContent = `${n} vineyard${n===1?'':'s'}`;
+    }
+    function featureId(f){
+      const p = f.properties || {};
+      return p.id || (p.Name || 'unknown');
+    }
+    function toPointFromPolygon(poly){
+      const center = turf.center(poly).geometry.coordinates;
+      const p = poly.properties || {};
+      return {
+        type:'Feature',
+        properties: {
+          id: featureId(poly),
+          Name: p.Name || p.name || 'Unknown vineyard',
+          SubAVA: p.SubAVA || p.AVA || '',
+          Facts: p.Facts || p.facts || '',
+          URL: p.URL || p.url || ''
+        },
+        geometry: { type:'Point', coordinates: center }
+      };
+    }
+    function flyTo(lngLat, zoom=12.5){
+      if (prefersReduced) {
+        map.easeTo({ center: lngLat, zoom, duration: 0 });
+      } else {
+        map.flyTo({ center: lngLat, zoom, speed: 0.8, curve: 1.6, essential: true });
+      }
+    }
+    function showPopupFor(f){
+      const p = f.properties || {};
+      const [lng,lat] = f.geometry.coordinates;
+      const gm = `https://www.google.com/maps?q=${lat},${lng}`;
+      const html = `
+        <div>
+          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
+          ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
+          ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
+          <div style="margin-top:8px; display:flex; gap:10px; flex-wrap:wrap">
+            ${p.URL ? `<a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a>` : ''}
+            <a class="btn secondary" href="${gm}" target="_blank" rel="noopener">Open in Maps</a>
+          </div>
+        </div>`;
+      popup.setLngLat([lng,lat]).setHTML(html).addTo(map);
+    }
+    function selectFeature(id, {updateHash=true}={}){
+      const f = (allPoints || []).find(ft => featureId(ft) === id) || (filteredPoints || []).find(ft => featureId(ft) === id);
+      if (!f) return;
+      const [lng,lat] = f.geometry.coordinates;
+      flyTo([lng,lat]);
+      showPopupFor(f);
+      highlightInLists(id);
+      if (updateHash) {
+        history.replaceState(null, '', `#id=${encodeURIComponent(id)}`);
+      }
+    }
+    function highlightInLists(id){
+      for (const el of document.querySelectorAll('.item')) {
+        el.classList.toggle('active', el.dataset.id === id);
+      }
+      const active = document.querySelector('.item.active');
+      if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+    function fitAll(){
+      const feats = (filteredPoints.length ? filteredPoints : allPoints);
+      if (!feats.length) return;
+      const b = feats.reduce((bounds, ft) => bounds.extend(ft.geometry.coordinates),
+        new mapboxgl.LngLatBounds(feats[0].geometry.coordinates, feats[0].geometry.coordinates));
+      map.fitBounds(b, { padding: {top:50,right:50,bottom:50,left:50} });
+    }
+    function buildLists(items){
+      const mkItem = (f) => {
+        const p = f.properties;
+        const li = document.createElement('button');
+        li.className = 'item';
+        li.type = 'button';
+        li.setAttribute('role','listitem');
+        const id = featureId(f);
+        li.dataset.id = id;
+        li.innerHTML = `
+          <div class="name">${p.Name}</div>
+          <div class="meta">${p.SubAVA || ''}</div>
+          <div class="actions">
+            <span class="btn" aria-hidden="true">Fly to</span>
+            ${p.URL ? `<a class="btn" href="${p.URL}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Learn more</a>` : ''}
+          </div>
+        `;
+        li.addEventListener('click', () => selectFeature(id));
+        return li;
+      };
+      // Desktop list
+      listEl.innerHTML = '';
+      items.forEach(f => listEl.appendChild(mkItem(f)));
+      announceCount(countEl, items.length);
+      // Mobile list
+      mListEl.innerHTML = '';
+      items.forEach(f => mListEl.appendChild(mkItem(f)));
+      announceCount(mCountEl, items.length);
+    }
+    function debounce(fn, ms=200){
+      let t; return (...args) => { clearTimeout(t); t = setTimeout(() => fn(...args), ms); };
+    }
+    const doFilter = debounce((q) => {
+      const term = q.trim().toLowerCase();
+      filteredPoints = !term ? allPoints.slice() : allPoints.filter(f => {
+        const p = f.properties;
+        return [p.Name, p.SubAVA, p.Facts].some(v => (v||'').toLowerCase().includes(term));
+      });
+      buildLists(filteredPoints);
+      // Update map point source to filtered features
+      if (map.getSource('vineyard-points')) {
+        map.getSource('vineyard-points').setData({ type:'FeatureCollection', features: filteredPoints });
+      }
+    }, 160);
+
+    // =========================
+    // Sources & Layers
+    // =========================
+    map.on('load', async () => {
+      // Option A: Vector polygons -> derive centroids for points
+      
+      if (CONFIG.vector.url && CONFIG.vector.sourceLayer) {
+        map.addSource('vineyard-polygons', { type:'vector', url: CONFIG.vector.url });
+        map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'fill-color':'#c8a96a', 'fill-opacity':0.35 } });
+        map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'line-color':'#c8a96a', 'line-width': 1.2 } });
+
+        // Load a broad view to ensure tiles get cached, then harvest features from the source.
+        await preloadTilesAndBuildCentroids();
+      }
+ else if (typeof CONFIG.pointsGeoJSON === 'string') {
+        try {
+          const res = await fetch(CONFIG.pointsGeoJSON, { cache: 'no-store' });
+          const data = await res.json();
+          await addPointSourceAndLayers(data);
+        } catch (e) {
+          console.warn('Failed to fetch points GeoJSON. Falling back to demo.', e);
+          await addPointSourceAndLayers(demo);
+        }
+      }
+      // Fallback demo
+      else {
+        await addPointSourceAndLayers(demo);
+      }
+
+      // Polygon click also selects
+      if (map.getLayer('vineyard-fill')) {
+        map.on('click', 'vineyard-fill', (e) => {
+          const f = e.features && e.features[0];
+          if (!f) return;
+          selectFeature(featureId(f));
+        });
+        map.on('mouseenter', 'vineyard-fill', () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', 'vineyard-fill', () => map.getCanvas().style.cursor = '');
+      }
+
+      // Deep link: #id=...
+      const m = location.hash.match(/id=([^&]+)/);
+      if (m) {
+        const id = decodeURIComponent(m[1]);
+        // allow sources to finish
+        setTimeout(() => selectFeature(id, {updateHash:false}), 300);
+      } else {
+        fitAll();
+      }
+    });
+
+    async function addPointSourceAndLayers(geojson){
+      // Normalize properties so UI is consistent
+      geojson.features.forEach(f => {
+        const p = f.properties || {};
+        f.properties = {
+          id: featureId(f),
+          Name: p.Name || p.name || 'Unknown vineyard',
+          SubAVA: p.SubAVA || p.AVA || '',
+          Facts: p.Facts || p.facts || '',
+          URL: p.URL || p.url || ''
+        };
+      });
+      allPoints = geojson.features.slice();
+      filteredPoints = allPoints.slice();
+      buildLists(filteredPoints);
+
+      // Clustered source (great for many vineyards)
+      map.addSource('vineyard-points', {
+        type: 'geojson',
+        data: { type:'FeatureCollection', features: filteredPoints },
+        cluster: true,
+        clusterRadius: 50,
+        clusterMaxZoom: 14
+      });
+
+      // Clusters
+      map.addLayer({
+        id: 'clusters',
+        type: 'circle',
+        source: 'vineyard-points',
+        filter: ['has', 'point_count'],
+        paint: {
+          'circle-color': [
+            'step', ['get', 'point_count'],
+            '#42506B', 5, '#5e6e90', 15, '#7f8dae'
+          ],
+          'circle-radius': [
+            'step', ['get', 'point_count'],
+            12, 5, 16, 15, 20
+          ],
+          'circle-stroke-color': '#0b0c10',
+          'circle-stroke-width': 1.2
+        }
+      });
+      map.addLayer({
+        id: 'cluster-count',
+        type: 'symbol',
+        source: 'vineyard-points',
+        filter: ['has', 'point_count'],
+        layout: { 'text-field': ['get','point_count_abbreviated'], 'text-size': 12 },
+        paint: { 'text-color': '#eef2f7' }
+      });
+
+      // Unclustered points
+      map.addLayer({
+        id: 'vineyard-circles',
+        type: 'circle',
+        source: 'vineyard-points',
+        filter: ['!', ['has', 'point_count']],
+        paint: {
+          'circle-radius': ['interpolate', ['linear'], ['zoom'], 5, 4, 10, 7, 14, 9],
+          'circle-color': '#c8a96a',
+          'circle-stroke-color': '#0b0c10',
+          'circle-stroke-width': 1.2
+        }
+      });
+      map.addLayer({
+        id: 'vineyard-labels',
+        type: 'symbol',
+        source: 'vineyard-points',
+        filter: ['!', ['has', 'point_count']],
+        layout: {
+          'text-field': ['get', 'Name'],
+          'text-size': 12,
+          'text-offset': [0, 1.1],
+          'text-anchor': 'top'
+        },
+        paint: {
+          'text-color': '#eef2f7',
+          'text-halo-color': '#0b0c10',
+          'text-halo-width': 1.2
+        }
+      });
+
+      // Interactivity
+      map.on('click', 'clusters', function (e) {
+        const features = map.queryRenderedFeatures(e.point, { layers: ['clusters'] });
+        const clusterId = features[0].properties.cluster_id;
+        map.getSource('vineyard-points').getClusterExpansionZoom(clusterId, function (err, zoom) {
+          if (err) return;
+          map.easeTo({ center: features[0].geometry.coordinates, zoom });
+        });
+      });
+      map.on('click', 'vineyard-circles', (e) => {
+        const f = e.features && e.features[0];
+        if (!f) return;
+        selectFeature(featureId(f));
+      });
+      ['clusters','vineyard-circles'].forEach(l => {
+        map.on('mouseenter', l, () => map.getCanvas().style.cursor = 'pointer');
+        map.on('mouseleave', l, () => map.getCanvas().style.cursor = '');
+      });
+    }
+
+    
+    async function preloadTilesAndBuildCentroids(){
+      // Save current view
+      const prev = { center: map.getCenter(), zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
+
+      // Zoom out to load a wider swath of tiles around the default center
+      map.easeTo({ center: CONFIG.defaultCenter, zoom: Math.min(9, prev.zoom), duration: 0 });
+      await map.once('idle');
+
+      // Harvest centroids from vector source tiles
+      const centroidFC = harvestVectorCentroids();
+      if (centroidFC.features.length === 0) {
+        console.warn('No vector features found. Double-check the source-layer name.');
+      }
+      await addPointSourceAndLayers(centroidFC.features.length ? centroidFC : demo);
+
+      // Restore previous view
+      map.easeTo({ center: prev.center, zoom: prev.zoom, bearing: prev.bearing, pitch: prev.pitch, duration: 0 });
+    }
+
+    function harvestVectorCentroids(){
+      const feats = map.querySourceFeatures('vineyard-polygons', { sourceLayer: CONFIG.vector.sourceLayer }) || [];
+      const uniq = new Map();
+      for (const f of feats) {
+        const id = featureId(f);
+        if (!uniq.has(id)) {
+          uniq.set(id, toPointFromPolygon(f));
+        }
+      }
+      return { type: 'FeatureCollection', features: Array.from(uniq.values()) };
+    }
+
+    // =========================
+    // UI wiring
+    // =========================
+    fitAllBtn.addEventListener('click', fitAll);
+    mFitAllBtn.addEventListener('click', fitAll);
+    document.getElementById('refresh').addEventListener('click', preloadTilesAndBuildCentroids);
+    filterEl.addEventListener('input', (e)=> doFilter(e.target.value));
+    mFilterEl.addEventListener('input', (e)=> doFilter(e.target.value));
+
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.key === '/' && document.activeElement !== filterEl && document.activeElement !== mFilterEl) {
+        e.preventDefault();
+        (window.innerWidth <= 900 ? mFilterEl : filterEl).focus();
+      } else if (e.key.toLowerCase() === 'f') {
+        fitAll();
+      } else if (e.key.toLowerCase() === 's' && window.innerWidth > 900) {
+        setCollapsed(!collapsed);
+      } else if (e.key === 'Escape') {
+        popup.remove();
+        history.replaceState(null, '', location.pathname);
+        const active = document.querySelector('.item.active'); if (active) active.classList.remove('active');
+      }
+    });
+
+    // Sidebar collapse (desktop)
+    const appEl = document.querySelector('.app');
+    let collapsed = false;
+    const fab = document.getElementById('sidebar-fab');
+    const expandBtn = document.getElementById('expand-sidebar');
+    collapseBtn.setAttribute('aria-expanded','true');
+    function setCollapsed(val){
+      collapsed = !!val;
+      appEl.classList.toggle('sidebar-collapsed', collapsed);
+      document.getElementById('sidebar').setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+      collapseBtn.textContent = collapsed ? 'Expand' : 'Collapse';
+      collapseBtn.setAttribute('aria-expanded', collapsed ? 'false' : 'true');
+      // Show floating reopen button only when collapsed and on desktop widths
+      if (collapsed && window.innerWidth > 900) { fab.style.display = 'block'; } else { fab.style.display = 'none'; }
+      setTimeout(() => map.resize(), 60);
+    }
+    collapseBtn.addEventListener('click', () => setCollapsed(!collapsed));
+    expandBtn.addEventListener('click', () => setCollapsed(false));
+    window.addEventListener('resize', () => { if (window.innerWidth <= 900) fab.style.display = 'none'; else if (collapsed) fab.style.display = 'block'; });
+
+    // Drawer controls (mobile)
+    function setDrawerOpen(open) {
+      drawerEl.classList.toggle('open', open);
+      drawerButton.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+    drawerButton.addEventListener('click', () => {
+      const open = !drawerEl.classList.contains('open');
+      setDrawerOpen(open);
+      if (open) mFilterEl.focus();
+    });
+    document.getElementById('drawer-handle').addEventListener('click', () => setDrawerOpen(!drawerEl.classList.contains('open')));
+
+    // Clicking map on mobile closes the drawer
+    map.on('click', () => { if (window.innerWidth <= 900) setDrawerOpen(false); });
+
+  </script>
+</body>
+</html>
     .drawer {
       position: fixed; left: 0; right: 0; bottom: 0;
       height: 56px; /* closed height */
