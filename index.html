@@ -78,6 +78,310 @@
       styleUrl: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
       vector: {
         url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-17y6g',
+        sourceLayer: 'Vineyard-Sources'
+      },
+      dataset: {
+        id: 'clnunbjdd0gcp2nn54qh84xr9',
+        username: 'graham-bcellars' // adjust if needed
+      },
+      defaultCenter: [-122.37, 38.45],
+      defaultZoom: 10,
+      startPitch: 50
+    };
+
+    mapboxgl.accessToken = CONFIG.accessToken;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: CONFIG.styleUrl,
+      center: CONFIG.defaultCenter,
+      zoom: CONFIG.defaultZoom,
+      pitch: CONFIG.startPitch,
+      bearing: 0,
+      cooperativeGestures: true,
+      attributionControl: true
+    });
+    map.addControl(new mapboxgl.NavigationControl({showCompass:true}), 'top-right');
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+    // ===== State =====
+    const listEl = document.getElementById('list');
+    const countEl = document.getElementById('count');
+    const filterEl = document.getElementById('filter');
+    const fitAllBtn = document.getElementById('fit-all');
+    const refreshBtn = document.getElementById('refresh');
+    const collapseBtn = document.getElementById('collapse');
+    const appEl = document.querySelector('.app');
+    const fab = document.getElementById('sidebar-fab');
+    const expandBtn = document.getElementById('expand-sidebar');
+
+    let allPoints = []; // centroids from dataset
+    let filteredPoints = [];
+    const popup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true });
+
+    // ===== Utilities =====
+    function groupPointsByName(geojson){
+      const groups = new Map();
+      for (const f of geojson.features) {
+        const name = f.properties && f.properties.Name;
+        if (!name) continue;
+        if (!groups.has(name)) {
+          groups.set(name, { coords: [], props: f.properties });
+        }
+        groups.get(name).coords.push(f.geometry.coordinates);
+      }
+      const out = { type:'FeatureCollection', features: [] };
+      for (const [name, rec] of groups.entries()) {
+        // Average coordinates for a stable representative point
+        const n = rec.coords.length;
+        const avg = rec.coords.reduce((acc, c) => [acc[0]+c[0], acc[1]+c[1]], [0,0]).map(v => v/n);
+        out.features.push({
+          type:'Feature',
+          properties: rec.props, // Name/SubAVA/Facts/URL from first feature
+          geometry: { type:'Point', coordinates: avg }
+        });
+      }
+      return out;
+    }
+
+    function featureName(f) { return (f.properties && f.properties.Name) ? String(f.properties.Name) : 'unknown'; }
+    function announceCount(n) { countEl.textContent = `${n} vineyard${n===1?'':'s'}`; }
+    function buildLists(items) {
+      listEl.innerHTML = '';
+      for (const f of items) {
+        const p = f.properties || {};
+        const li = document.createElement('button');
+        li.className = 'item';
+        li.type = 'button';
+        li.dataset.id = p.Name;
+        li.innerHTML = `
+          <div class="name">${p.Name}</div>
+          <div class="meta">${p.SubAVA || ''}</div>
+          <div class="actions">
+            <span class="btn" aria-hidden="true">Fly to</span>
+            ${p.URL ? `<a class="btn" href="${p.URL}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Learn more</a>` : ''}
+          </div>`;
+        li.addEventListener('click', () => selectByName(p.Name));
+        listEl.appendChild(li);
+      }
+      announceCount(items.length);
+    }
+    function highlightInList(name) {
+      document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === name));
+      const active = document.querySelector('.item.active'); if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+    function flyTo(lngLat){ map.flyTo({ center: lngLat, zoom: 15, pitch: 75, speed: 0.8, curve: 1.6, essential: true }); }); }
+    function showPopupFor(f) {
+      const p = f.properties || {};
+      const [lng,lat] = f.geometry.coordinates;
+      const html = `
+        <div>
+          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
+          ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
+          ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
+          ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
+        </div>`;
+      popup.setLngLat([lng,lat]).setHTML(html).addTo(map);
+    }
+    function ensureHighlightLayer(){
+      if (!map.getLayer('vineyard-selected-fill')) {
+        map.addLayer({ id:'vineyard-selected-fill', type:'fill', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'fill-color':'#ffffff', 'fill-opacity':0.25 }, filter:['==', ['get','Name'], '___none___'] }, 'vineyard-outline');
+      }
+      if (!map.getLayer('vineyard-selected')) {
+        map.addLayer({
+          id: 'vineyard-selected',
+          type: 'line',
+          source: 'vineyard-polygons',
+          'source-layer': CONFIG.vector.sourceLayer,
+          paint: { 'line-color': '#ffffff', 'line-width': 2.5 },
+          filter: ['==', ['get', 'Name'], '___none___']
+        });
+      }
+    }
+    function selectByName(name) {
+      if (!name) return;
+      // highlight polygon
+      if (map.getSource('vineyard-polygons')) {
+        ensureHighlightLayer();
+        map.setFilter('vineyard-selected-fill', ['==', ['get','Name'], name]);
+        map.setFilter('vineyard-selected', ['==', ['get','Name'], name]);
+        const polys = map.querySourceFeatures('vineyard-polygons', { sourceLayer: CONFIG.vector.sourceLayer, filter: ['==', ['get','Name'], name] });
+        if (polys && polys.length) {
+          try { const b = turf.bbox(polys[0]); map.fitBounds([[b[0], b[1]], [b[2], b[3]]], { padding: 50 }); }
+          catch(e){ /* fallback below */ }
+        }
+      }
+      // fly to centroid
+      const pt = (filteredPoints.length ? filteredPoints : allPoints).find(f => featureName(f) === name);
+      if (pt) { flyTo(pt.geometry.coordinates); showPopupFor(pt); }
+      highlightInList(name);
+      history.replaceState(null, '', `#id=${encodeURIComponent(name)}`);
+    }
+    function fitAll(){
+      const feats = filteredPoints.length ? filteredPoints : allPoints;
+      if (!feats.length) return;
+      const b = feats.reduce((bounds, ft) => bounds.extend(ft.geometry.coordinates), new mapboxgl.LngLatBounds(feats[0].geometry.coordinates, feats[0].geometry.coordinates));
+      map.fitBounds(b, { padding: 50 });
+    }
+    function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+    const doFilter = debounce((q)=>{
+      const term = q.trim().toLowerCase();
+      filteredPoints = !term ? allPoints.slice() : allPoints.filter(f => {
+        const p = f.properties || {};
+        return [p.Name, p.SubAVA, p.Facts].some(v => (v||'').toLowerCase().includes(term));
+      });
+      buildLists(filteredPoints);
+      if (map.getSource('vineyard-points')) map.getSource('vineyard-points').setData({ type:'FeatureCollection', features: filteredPoints });
+    }, 160);
+
+    // ===== Data plumbing =====
+    async function fetchDatasetFeatures() {
+      const base = 'https://api.mapbox.com/datasets/v1/';
+      const url = base + CONFIG.dataset.username + '/' + CONFIG.dataset.id + '/features?access_token=' + encodeURIComponent(mapboxgl.accessToken);
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Dataset fetch failed: ' + res.status);
+      const fc = await res.json();
+      if (!fc || !fc.features) throw new Error('No features in dataset.');
+
+      if (fc.features.length) console.log('Sample dataset feature props:', fc.features[0].properties);
+
+      const pts = [];
+      for (const f of fc.features) {
+        const p = f.properties || {};
+        const name = (p.Name !== undefined && p.Name !== null) ? String(p.Name) : null;
+        if (!name) continue;
+        let center;
+        if (f.geometry && f.geometry.type === 'Point') center = f.geometry.coordinates;
+        else {
+          try { center = turf.centroid(f).geometry.coordinates; } catch(e) { continue; }
+        }
+        pts.push({
+          type:'Feature',
+          properties: {
+            Name: name,
+            SubAVA: p.SubAVA || p.AVA || '',
+            Facts: p.Facts || p.facts || '',
+            URL: p.URL || p.url || ''
+          },
+          geometry: { type:'Point', coordinates: center }
+        });
+      }
+      return { type:'FeatureCollection', features: pts };
+    }
+
+    async function addPointSourceAndLayers(geojson) {
+      geojson.features = geojson.features.filter(f => f.properties && f.properties.Name);
+      allPoints = geojson.features.slice();
+      filteredPoints = allPoints.slice();
+      buildLists(filteredPoints);
+
+      if (map.getSource('vineyard-points')) map.removeSource('vineyard-points');
+      ['clusters','cluster-count','vineyard-circles','vineyard-labels'].forEach(id => { if (map.getLayer(id)) map.removeLayer(id); });
+
+      map.addSource('vineyard-points', {
+        type:'geojson',
+        data: geojson,
+        cluster: true,
+        clusterRadius: 50,
+        clusterMaxZoom: 14
+      });
+      map.addLayer({
+        id:'clusters', type:'circle', source:'vineyard-points', filter:['has','point_count'],
+        paint:{ 'circle-color': ['step',['get','point_count'],'#42506B',5,'#5e6e90',15,'#7f8dae'], 'circle-radius': ['step',['get','point_count'],12,5,16,15,20], 'circle-stroke-color':'#0b0c10','circle-stroke-width':1.2 }
+      });
+      map.addLayer({
+        id:'cluster-count', type:'symbol', source:'vineyard-points', filter:['has','point_count'],
+        layout:{ 'text-field':['get','point_count_abbreviated'], 'text-size': 12 }, paint:{ 'text-color':'#eef2f7' }
+      });
+      map.addLayer({
+        id:'vineyard-symbols', type:'symbol', source:'vineyard-points', filter:['!', ['has','point_count']],
+        layout:{ 'icon-image':'marker-15', 'icon-size': 1.2, 'icon-allow-overlap': true },
+        paint:{ 'icon-color': '#ffffff' }
+      });
+      map.addLayer({
+        id:'vineyard-labels', type:'symbol', source:'vineyard-points', filter:['!', ['has','point_count']],
+        minzoom: 12,
+        layout:{ 'text-field':['get','Name'], 'text-size':12, 'text-offset':[0,1.1], 'text-anchor':'top' },
+        paint:{ 'text-color':'#eef2f7', 'text-halo-color':'#0b0c10', 'text-halo-width':1.2 }
+      });
+
+      map.on('click','clusters',(e)=>{
+        const f = map.queryRenderedFeatures(e.point, { layers:['clusters'] })[0];
+        map.getSource('vineyard-points').getClusterExpansionZoom(f.properties.cluster_id, (err, zoom)=>{
+          if (err) return; map.easeTo({ center: f.geometry.coordinates, zoom });
+        });
+      });
+      map.on('click','vineyard-symbols',(e)=>{
+        const f = e.features && e.features[0]; if (!f) return; selectByName(String(f.properties.Name));
+      });
+      ['clusters','vineyard-symbols'].forEach(l=>{ map.on('mouseenter', l, () => map.getCanvas().style.cursor='pointer'); map.on('mouseleave', l, () => map.getCanvas().style.cursor=''); });
+    }
+
+    // ===== Init =====
+    map.on('load', async () => {
+      // Polygons from tileset
+      map.addSource('vineyard-polygons', { type:'vector', url: CONFIG.vector.url });
+      map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'fill-color':'#c8a96a', 'fill-opacity':0.35 } });
+      map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'line-color':'#c8a96a', 'line-width':1.2 } });
+
+      // Points/attributes from dataset
+      try {
+        let points = await fetchDatasetFeatures();
+        points = groupPointsByName(points);
+        await addPointSourceAndLayers(points);
+        fitAll();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to load dataset features. Check your access token and dataset permissions.');
+      }
+
+      // Polygon click -> select by Name
+      map.on('click','vineyard-fill', (e)=>{
+        const f = e.features && e.features[0]; if (!f) return;
+        const name = f.properties && f.properties.Name; if (name) selectByName(String(name));
+      });
+      map.on('mouseenter','vineyard-fill', () => map.getCanvas().style.cursor='pointer');
+      map.on('mouseleave','vineyard-fill', () => map.getCanvas().style.cursor='');
+
+      const m = location.hash.match(/id=([^&]+)/); if (m) setTimeout(()=>selectByName(decodeURIComponent(m[1])), 300);
+    });
+
+    // ===== UI events =====
+    fitAllBtn.addEventListener('click', fitAll);
+    refreshBtn.addEventListener('click', async () => {
+      try { let pts = await fetchDatasetFeatures(); pts = groupPointsByName(pts); await addPointSourceAndLayers(pts); fitAll(); }
+      catch(e) { console.error(e); alert('Refresh failed. See console.'); }
+    });
+    filterEl.addEventListener('input', (e)=> doFilter(e.target.value));
+
+    // Sidebar collapse / expand
+    let collapsed = false;
+    function setCollapsed(val){
+      collapsed = !!val;
+      appEl.classList.toggle('sidebar-collapsed', collapsed);
+      document.getElementById('sidebar').setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+      if (collapsed && window.innerWidth > 900) { fab.style.display = 'block'; } else { fab.style.display = 'none'; }
+      setTimeout(()=>map.resize(), 60);
+    }
+    collapseBtn.addEventListener('click', () => setCollapsed(!collapsed));
+    expandBtn.addEventListener('click', () => setCollapsed(false));
+    window.addEventListener('resize', () => { if (window.innerWidth <= 900) fab.style.display='none'; else if (collapsed) fab.style.display='block'; });
+
+    // Keyboard: S to toggle sidebar, / to focus filter
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === '/' && document.activeElement !== filterEl) { e.preventDefault(); filterEl.focus(); }
+      else if (e.key.toLowerCase() === 's' && window.innerWidth > 900) { setCollapsed(!collapsed); }
+      else if (e.key === 'Escape') { popup.remove(); history.replaceState(null, '', location.pathname); const a=document.querySelector('.item.active'); if(a) a.classList.remove('active'); }
+    });
+  </script>
+</body>
+</html>
+  <script>
+    // ===== Config =====
+    const CONFIG = {
+      accessToken: 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw', // TODO: set this
+      styleUrl: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
+      vector: {
+        url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-17y6g',
         sourceLayer: 'vineyard-sources'
       },
       dataset: {
