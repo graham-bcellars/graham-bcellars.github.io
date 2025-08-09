@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v10)</title>
+  <title>B Cellars — Vineyard Map (v11)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -26,7 +26,7 @@
     .sidebar{background:#ffffff; color:#111318; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:14px; padding:18px; overflow:auto;}
     .brand{display:flex; align-items:center; justify-content:space-between; gap:10px;}
     .brand h1{font-size:20px; margin:0; color:#111318;}
-    .controls{display:flex; gap:8px; flex-wrap:wrap; align-items:center;}
+    .controls{display:flex; gap:8px; flex-wrap:nowrap; align-items:center; justify-content:flex-start;}
     .btn{padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#f9fafb; color:#111318; font-size:14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
     .btn.primary{ background:var(--brand); color:#ffffff; border-color:var(--brand); }
     .btn.secondary{ background:#ffffff; border-color:var(--border); }
@@ -56,7 +56,8 @@
     <aside class="sidebar" aria-label="Vineyard navigation" id="sidebar">
       <div class="brand">
         <h1>Vineyard Sources</h1>
-        <div class="controls">
+      </div>
+      <div class="controls">
           <button id="fit-all" class="btn" title="Zoom to all vineyards">Fit all</button>
           <button id="collapse" class="btn secondary" title="Hide/show sidebar">Collapse</button>
           
@@ -71,6 +72,310 @@
     </aside>
 
     <div id="map" role="region" aria-label="Map of vineyard locations">
+      <div class="sidebar-toggle-fab" id="sidebar-fab">
+        <button class="btn" id="expand-sidebar" title="Show sidebar">Show sidebar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ===== Config =====
+    const CONFIG = {
+      accessToken: 'pk.eyJ1IjoiZ3JhaGFtLWJjZWxsYXJzIiwiYSI6ImNsbmR1dWZiZjA3OXoyeWxpNTR4Z29wMjMifQ.Dw9ZRaGWdJkYUrFpML7XTw',
+      styleUrl: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
+      vector: {
+        url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-17y6g',
+        sourceLayer: 'Vineyard-Sources' // confirm exact name in Studio → Inspect
+      },
+      dataset: {
+        id: 'clnunbjdd0gcp2nn54qh84xr9',
+        username: 'graham-bcellars'
+      },
+      defaultCenter: [-122.37, 38.45],
+      defaultZoom: 10
+    };
+
+    mapboxgl.accessToken = CONFIG.accessToken;
+    const map = new mapboxgl.Map({
+      container: 'map',
+      style: CONFIG.styleUrl,
+      center: CONFIG.defaultCenter,
+      zoom: CONFIG.defaultZoom,
+      pitch: 0,
+      bearing: 0,
+      cooperativeGestures: true,
+      attributionControl: true
+    });
+    map.addControl(new mapboxgl.NavigationControl({showCompass:true}), 'top-right');
+    map.addControl(new mapboxgl.FullscreenControl(), 'top-right');
+
+    // ===== State =====
+    const listEl = document.getElementById('list');
+    const countEl = document.getElementById('count');
+    const filterEl = document.getElementById('filter');
+    const fitAllBtn = document.getElementById('fit-all');
+    const collapseBtn = document.getElementById('collapse');
+    const appEl = document.querySelector('.app');
+    const fab = document.getElementById('sidebar-fab');
+    const expandBtn = document.getElementById('expand-sidebar');
+    const popup = new mapboxgl.Popup({ closeButton: true, closeOnClick: true });
+
+    // Index by Name → { center:[lng,lat], bbox:[minX,minY,maxX,maxY], props:{...} }
+    let nameIndex = {};
+    // Sorted list of names currently visible (after filter)
+    let namesList = [];
+
+    // ===== Utilities =====
+    function getName(props){ return (props && (props.Name ?? props.name ?? props.NAME)) ? String(props.Name ?? props.name ?? props.NAME) : null; }
+    function mergeBbox(acc, b){
+      if (!acc) return b.slice();
+      return [Math.min(acc[0], b[0]), Math.min(acc[1], b[1]), Math.max(acc[2], b[2]), Math.max(acc[3], b[3])];
+    }
+    function buildIndexFromDataset(fc){
+      const accum = new Map(); // name -> { sum:[lng,lat], n:int, bbox:[...], props }
+      for (const f of fc.features || []){
+        const nm = getName(f.properties);
+        if (!nm) continue;
+        let b;
+        try { b = turf.bbox(f); } catch(e){ continue; }
+        let c;
+        try { c = turf.centroid(f).geometry.coordinates; } catch(e){ continue; }
+        if (!accum.has(nm)){
+          // Choose first non-empty props for SubAVA/Facts/URL
+          const p = f.properties || {};
+          accum.set(nm, {
+            sum:[c[0], c[1]], n:1, bbox:b.slice(),
+            props:{
+              Name: nm,
+              SubAVA: p.SubAVA || p.AVA || '',
+              Facts: p.Facts || p.facts || '',
+              URL: p.URL || p.url || ''
+            }
+          });
+        } else {
+          const rec = accum.get(nm);
+          rec.sum[0]+=c[0]; rec.sum[1]+=c[1]; rec.n+=1;
+          rec.bbox = mergeBbox(rec.bbox, b);
+          // keep existing props
+        }
+      }
+      nameIndex = {};
+      for (const [nm, rec] of accum.entries()){
+        const center = [rec.sum[0]/rec.n, rec.sum[1]/rec.n];
+        nameIndex[nm] = { center, bbox: rec.bbox, props: rec.props };
+      }
+    }
+    function namesAsFeatureCollection(names){
+      return {
+        type:'FeatureCollection',
+        features: names.map(nm => ({
+          type:'Feature',
+          properties: nameIndex[nm].props,
+          geometry: { type:'Point', coordinates: nameIndex[nm].center }
+        }))
+      };
+    }
+    function buildList(names){
+      listEl.innerHTML = '';
+      for (const nm of names){
+        const p = nameIndex[nm].props;
+        const li = document.createElement('button');
+        li.className = 'item';
+        li.type = 'button';
+        li.dataset.id = nm;
+        li.innerHTML = `
+          <div class="name">${p.Name}</div>
+          <div class="meta">${p.SubAVA || ''}</div>
+          <div class="actions">
+            <span class="btn primary" aria-hidden="true">Fly To Vineyard</span>
+            ${p.URL ? `<a class="btn" href="${p.URL}" target="_blank" rel="noopener" onclick="event.stopPropagation()">Learn more</a>` : ''}
+          </div>`;
+        li.addEventListener('click', () => selectByName(nm));
+        listEl.appendChild(li);
+      }
+      countEl.textContent = `${names.length} vineyard${names.length===1?'':'s'}`;
+    }
+    function highlightInList(name){
+      document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === name));
+      const active = document.querySelector('.item.active'); if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
+    }
+    function showPopup(name){
+      const rec = nameIndex[name]; if (!rec) return;
+      const p = rec.props, lngLat = rec.center;
+      const html = `
+        <div>
+          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
+          ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
+          ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
+          ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
+        </div>`;
+      popup.setLngLat(lngLat).setHTML(html).addTo(map);
+    }
+    function ensureHighlightLayers(){
+      if (!map.getLayer('vineyard-selected-fill')) {
+        map.addLayer({
+          id: 'vineyard-selected-fill',
+          type: 'fill',
+          source: 'vineyard-polygons',
+          'source-layer': 'Vineyard-Sources',
+          paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.25 },
+          filter: ['==', ['get', 'Name'], '___none___']
+        }, 'vineyard-outline');
+      }
+      if (!map.getLayer('vineyard-selected-line')) {
+        map.addLayer({
+          id: 'vineyard-selected-line',
+          type: 'line',
+          source: 'vineyard-polygons',
+          'source-layer': 'Vineyard-Sources',
+          paint: { 'line-color': '#ffffff', 'line-width': 2.5 },
+          filter: ['==', ['get', 'Name'], '___none___']
+        });
+      }
+    }
+    function setHighlight(name){
+      ensureHighlightLayers();
+      map.setFilter('vineyard-selected-fill', ['==', ['get','Name'], name]);
+      map.setFilter('vineyard-selected-line', ['==', ['get','Name'], name]);
+    }
+    function cinematicFly(bbox, center){
+      const currentZoom = map.getZoom();
+      const marginFactor = 0.15;
+      const doFit = () => {
+        if (bbox) {
+          // Expand bbox by 15% margin on all sides
+          const dx = (bbox[2] - bbox[0]) * marginFactor;
+          const dy = (bbox[3] - bbox[1]) * marginFactor;
+          const expanded = [bbox[0]-dx, bbox[1]-dy, bbox[2]+dx, bbox[3]+dy];
+          map.fitBounds([[expanded[0], expanded[1]], [expanded[2], expanded[3]]], { padding: 0, maxZoom: 17 });
+          setTimeout(() => map.easeTo({ pitch: 40, duration: 300 }), 50);
+        } else if (center) {
+          map.flyTo({ center, zoom: 17, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
+        }
+      };
+      if (currentZoom > 15.5) {
+        map.easeTo({ zoom: Math.min(currentZoom, 12.5), duration: 250 });
+        setTimeout(doFit, 260);
+      } else {
+        doFit();
+      }
+    }
+    function selectByName(name){
+      const rec = nameIndex[name];
+      if (!rec) return;
+      setHighlight(name);
+      const b = rec.bbox;
+      cinematicFly(b, rec.center);
+      showPopup(name);
+      highlightInList(name);
+      history.replaceState(null, '', `#id=${encodeURIComponent(name)}`);
+    }
+    function fitAll(){
+      const names = namesList.length ? namesList : Object.keys(nameIndex);
+      if (!names.length) return;
+      const coords = names.map(nm => nameIndex[nm].center);
+      const b = coords.reduce((bounds, c) => bounds.extend(c), new mapboxgl.LngLatBounds(coords[0], coords[0]));
+      map.fitBounds(b, { padding: 50 });
+    }
+    function debounce(fn, ms=200){ let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a),ms); }; }
+    const doFilter = debounce((q)=>{
+      const term = q.trim().toLowerCase();
+      const names = Object.keys(nameIndex).filter(nm => {
+        const p = nameIndex[nm].props;
+        return [p.Name, p.SubAVA, p.Facts].some(v => (v||'').toLowerCase().includes(term));
+      }).sort((a,b)=> a.localeCompare(b));
+      namesList = names;
+      buildList(namesList);
+    }, 160);
+
+    // ===== Data plumbing =====
+    async function fetchDataset() {
+      const url = `https://api.mapbox.com/datasets/v1/${CONFIG.dataset.username}/${CONFIG.dataset.id}/features?access_token=${encodeURIComponent(mapboxgl.accessToken)}`;
+      const res = await fetch(url, { cache: 'no-store' });
+      if (!res.ok) throw new Error('Dataset fetch failed: ' + res.status);
+      const fc = await res.json();
+      if (!fc || !fc.features) throw new Error('No features in dataset.');
+      return fc;
+    }
+
+    async function rebuildFromDataset(){
+      const fc = await fetchDataset();
+      buildIndexFromDataset(fc);
+      // Build sidebar list (sorted, deduped)
+      namesList = Object.keys(nameIndex).sort((a,b)=> a.localeCompare(b));
+      buildList(namesList);
+
+      // Labels from grouped centers (no markers)
+      const labelsFC = namesAsFeatureCollection(namesList);
+      if (map.getSource('vineyard-points')) map.removeSource('vineyard-points');
+      if (map.getLayer('vineyard-labels')) map.removeLayer('vineyard-labels');
+      map.addSource('vineyard-points', { type:'geojson', data: labelsFC });
+      map.addLayer({
+        id:'vineyard-labels',
+        type:'symbol',
+        source:'vineyard-points',
+        minzoom: 12,
+        layout:{ 'text-field':['get','Name'], 'text-size':12, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-allow-overlap': true },
+        paint:{ 'text-color':'#eef2f7', 'text-halo-color':'#0b0c10', 'text-halo-width':1.2 }
+      });
+    }
+
+    // ===== Init =====
+    map.on('load', async () => {
+      // Polygons from tileset
+      map.addSource('vineyard-polygons', { type:'vector', url: CONFIG.vector.url });
+      map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': 'Vineyard-Sources', paint:{ 'fill-color':'#c64b4b', 'fill-opacity':0.35 } });
+      map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': 'Vineyard-Sources', paint:{ 'line-color':'#c64b4b', 'line-width':1.2 } });
+
+      try {
+        await rebuildFromDataset();
+        fitAll();
+      } catch (e) {
+        console.error(e);
+        alert('Failed to load dataset features. Check token or dataset permissions.');
+      }
+
+      // Polygon click -> select by Name (with fallbacks on key casing)
+      ['vineyard-fill','vineyard-outline'].forEach(layer => {
+        map.on('click', layer, (e)=>{
+          const f = e.features && e.features[0]; if (!f) return;
+          const name = getName(f.properties);
+          if (name) { selectByName(name); }
+        });
+        map.on('mouseenter', layer, () => map.getCanvas().style.cursor='pointer');
+        map.on('mouseleave', layer, () => map.getCanvas().style.cursor='');
+      });
+      
+      // Deep link
+      const m = location.hash.match(/id=([^&]+)/); if (m) setTimeout(()=>selectByName(decodeURIComponent(m[1])), 300);
+    });
+
+    // ===== UI events =====
+    fitAllBtn.addEventListener('click', fitAll);
+    filterEl.addEventListener('input', (e)=> doFilter(e.target.value));
+
+    // Sidebar collapse / expand (with floating reopen button)
+    let collapsed = false;
+    function setCollapsed(val){
+      collapsed = !!val;
+      appEl.classList.toggle('sidebar-collapsed', collapsed);
+      document.getElementById('sidebar').setAttribute('aria-hidden', collapsed ? 'true' : 'false');
+      if (collapsed && window.innerWidth > 900) { fab.style.display = 'block'; } else { fab.style.display = 'none'; }
+      setTimeout(()=>map.resize(), 60);
+    }
+    collapseBtn.addEventListener('click', () => setCollapsed(!collapsed));
+    expandBtn.addEventListener('click', () => setCollapsed(false));
+    window.addEventListener('resize', () => { if (window.innerWidth <= 900) fab.style.display='none'; else if (collapsed) fab.style.display='block'; });
+
+    // Keyboard: S to toggle sidebar, / to focus filter
+    document.addEventListener('keydown', (e)=>{
+      if (e.key === '/' && document.activeElement !== filterEl) { e.preventDefault(); filterEl.focus(); }
+      else if (e.key.toLowerCase() === 's' && window.innerWidth > 900) { setCollapsed(!collapsed); }
+      else if (e.key === 'Escape') { popup.remove(); history.replaceState(null, '', location.pathname); const a=document.querySelector('.item.active'); if(a) a.classList.remove('active'); }
+    });
+  </script>
+</body>
+</html>
       <div class="sidebar-toggle-fab" id="sidebar-fab">
         <button class="btn" id="expand-sidebar" title="Show sidebar">Show sidebar</button>
       </div>
