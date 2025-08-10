@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v17)</title>
+  <title>B Cellars — Vineyard Map (v18)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -236,10 +236,12 @@
       map.setFilter('vineyard-selected-line', ['==', nameExpr, name]);
     }
     
+    
     function cinematicFly(bbox, center){
       const currentZoom = map.getZoom();
-      const stepOutZoom = 12.5;
       const targetZoom = 18.0; // desired close-up zoom
+      // Calculate bbox center for deterministic centering
+      const bboxCenter = bbox ? [ (bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2 ] : center;
 
       // 15% padding based on viewport size
       const w = map.getCanvas().clientWidth || 800;
@@ -251,36 +253,39 @@
         right: Math.round(w * 0.15)
       };
 
+      // Slower pacing (about half speed vs v17)
+      const zoomOutDuration = 500; // was 250
+      const fitDuration = 700;     // add duration to fit
+      const settleDuration = 600;  // was ~350
+      const flySpeed = 0.45;       # was ~0.9
+
       const enforceZoomAfterFit = () => {
         const z = map.getZoom();
         const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
         const finalZ = Math.min(targetZoom, maxZ);
         if (z < finalZ - 0.01) {
-          map.easeTo({ zoom: finalZ, pitch: 40, duration: 350 });
+          map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: settleDuration });
         } else {
-          map.easeTo({ pitch: 40, duration: 300 });
+          map.easeTo({ center: bboxCenter || center, pitch: 40, duration: settleDuration });
         }
       };
 
       const doFit = () => {
         if (bbox) {
-          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad });
-          // Give fit a moment, then enforce zoom
-          setTimeout(enforceZoomAfterFit, 180);
+          // Fit to bounds at slower speed and force centering
+          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, duration: fitDuration });
+          setTimeout(enforceZoomAfterFit, fitDuration + 50);
         } else if (center) {
           const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
           const finalZ = Math.min(targetZoom, maxZ);
-          map.flyTo({ center, zoom: finalZ, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
+          map.flyTo({ center, zoom: finalZ, pitch: 40, speed: flySpeed, curve: 1.4, essential: true });
         }
       };
 
-      // If already zoomed in tight, zoom out a bit first for context
-      if (currentZoom > 15.5) {
-        map.easeTo({ zoom: Math.min(currentZoom, stepOutZoom), duration: 250 });
-        setTimeout(doFit, 260);
-      } else {
-        doFit();
-      }
+      // Zoom out farther first for context, then fit
+      const zoomOutZoom = Math.max(8.5, currentZoom - 5); // stronger pull-back
+      map.easeTo({ center: bboxCenter || center || map.getCenter(), zoom: zoomOutZoom, duration: zoomOutDuration });
+      setTimeout(doFit, zoomOutDuration + 40);
     }
     function selectByName(name){
       const rec = nameIndex[name];
