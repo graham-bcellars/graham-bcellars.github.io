@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v18)</title>
+  <title>B Cellars — Vineyard Map (v19)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -237,10 +237,11 @@
     }
     
     
+    
     function cinematicFly(bbox, center){
       const currentZoom = map.getZoom();
       const stepOutZoom = 12.5;
-      const targetZoom = 18.0; // desired close-up zoom
+      const targetZoom = 18.0; // desired close-up zoom (used for point fallback)
 
       // 15% padding based on viewport size
       const w = map.getCanvas().clientWidth || 800;
@@ -257,20 +258,16 @@
 
       const enforceZoomAfterFit = () => {
         const z = map.getZoom();
-        const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
-        const finalZ = Math.min(targetZoom, maxZ);
-        if (z < finalZ - 0.01) {
-          map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: 350 });
-        } else {
-          map.easeTo({ center: bboxCenter || center, pitch: 40, duration: 300 });
-        }
+        // Zoom out a bit from the fitted zoom to ensure whole polygon(s) are visible
+        const finalZ = Math.max((z || 17) - 0.6, 12);
+        map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: 350 });
       };
 
       const doFit = () => {
         if (bbox) {
-          // Fit bounds first, then snap center precisely to the vineyard's bbox center
+          // Fit bounds first with padding; then nudge out and re-center precisely
           map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad });
-          setTimeout(enforceZoomAfterFit, 180);
+          setTimeout(enforceZoomAfterFit, 200);
         } else if (center) {
           const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
           const finalZ = Math.min(targetZoom, maxZ);
