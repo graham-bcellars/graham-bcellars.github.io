@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v18)</title>
+  <title>B Cellars — Vineyard Map (v19)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -46,7 +46,8 @@
     .sidebar-toggle-fab .btn{box-shadow:0 6px 20px rgba(0,0,0,.35);}
 
     .mapboxgl-popup{font:14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:1px solid #273049; text-align:left;}
+    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:2px solid #cc4346; text-align:left;}
+    .mapboxgl-popup-close-button{color:#cc4346; font-size:18px;}
 
     @media (max-width:900px){.app{grid-template-columns:1fr;} .sidebar{display:none;} }
   </style>
@@ -124,13 +125,65 @@
     let namesList = [];
 
     // ===== Utilities =====
+    function collectVarietals(props){
+      const vals = [];
+      for (const k in props){
+        if (/^varietal\s*\d*$/i.test(k)) {
+          const v = props[k];
+          if (v !== undefined && v !== null) {
+            const s = String(v).trim();
+            if (s) vals.push(s);
+          }
+        }
+      }
+      return vals;
+    }
+
     function getName(props){ return (props && (props.Name ?? props.name ?? props.NAME)) ? String(props.Name ?? props.name ?? props.NAME) : null; }
     function mergeBbox(acc, b){
       if (!acc) return b.slice();
       return [Math.min(acc[0], b[0]), Math.min(acc[1], b[1]), Math.max(acc[2], b[2]), Math.max(acc[3], b[3])];
     }
+    
     function buildIndexFromDataset(fc){
-      const accum = new Map(); // name -> { sum:[lng,lat], n:int, bbox:[...], props }
+      const accum = new Map(); // name -> { sum:[lng,lat], n:int, bbox:[...], props, varietals:Set }
+      for (const f of fc.features || []){
+        const nm = getName(f.properties);
+        if (!nm) continue;
+        let b, c;
+        try { b = turf.bbox(f); } catch(e){ continue; }
+        try { c = turf.centroid(f).geometry.coordinates; } catch(e){ continue; }
+        const p = f.properties || {};
+        const vars = collectVarietals(p);
+        if (!accum.has(nm)){
+          accum.set(nm, {
+            sum:[c[0], c[1]], n:1, bbox:b.slice(),
+            props:{
+              Name: nm,
+              AVA: p.AVA || p.ava || '',
+              SubAVA: p.SubAVA || p.subava || '',
+              Facts: p.Facts || p.facts || '',
+              URL: p.URL || p.url || ''
+            },
+            varietals: new Set(vars)
+          });
+        } else {
+          const rec = accum.get(nm);
+          rec.sum[0]+=c[0]; rec.sum[1]+=c[1]; rec.n+=1;
+          rec.bbox = [Math.min(rec.bbox[0], b[0]), Math.min(rec.bbox[1], b[1]), Math.max(rec.bbox[2], b[2]), Math.max(rec.bbox[3], b[3])];
+          if (!rec.props.AVA && (p.AVA || p.ava)) rec.props.AVA = p.AVA || p.ava;
+          if (!rec.props.SubAVA && (p.SubAVA || p.subava)) rec.props.SubAVA = p.SubAVA || p.subava;
+          vars.forEach(v => rec.varietals.add(v));
+        }
+      }
+      nameIndex = {};
+      for (const [nm, rec] of accum.entries()){
+        const center = [rec.sum[0]/rec.n, rec.sum[1]/rec.n];
+        const props = rec.props;
+        props.Varietals = Array.from(rec.varietals);
+        nameIndex[nm] = { center, bbox: rec.bbox, props };
+      }
+    }
       for (const f of fc.features || []){
         const nm = getName(f.properties);
         if (!nm) continue;
@@ -195,13 +248,26 @@
       document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === name));
       const active = document.querySelector('.item.active'); if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
     }
+    
     function showPopup(name){
       const rec = nameIndex[name]; if (!rec) return;
       const p = rec.props, lngLat = rec.center;
+
+      const varietals = Array.isArray(p.Varietals) ? p.Varietals.filter(Boolean) : [];
+      const vLabel = varietals.length <= 1 ? 'Varietal' : 'Varietals';
+      const varietalLine = varietals.length ? `<div style="margin-top:4px;"><strong>${vLabel}:</strong> ${varietals.join(', ')}</div>` : '';
+
       const html = `
         <div>
-          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
-          ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
+          <div style="font-weight:800; margin-bottom:6px; font-size:16px;">${p.Name || 'Vineyard'}</div>
+          ${p.AVA ? `<div><strong>AVA:</strong> ${p.AVA}</div>` : ''}
+          ${p.SubAVA ? `<div><strong>Sub-AVA:</strong> ${p.SubAVA}</div>` : ''}
+          ${varietalLine}
+          ${p.Facts ? `<div style="margin-top:8px;">${p.Facts}</div>` : ''}
+          ${p.URL ? `<div style="margin-top:10px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
+        </div>`;
+      popup.setLngLat(lngLat).setHTML(html).addTo(map);
+    }
           ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
           ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
         </div>`;
@@ -257,7 +323,7 @@
       const zoomOutDuration = 500; // was 250
       const fitDuration = 700;     // add duration to fit
       const settleDuration = 600;  // was ~350
-      const flySpeed = 0.45;       # was ~0.9
+      const flySpeed = 0.45;       // was ~0.9
 
       const enforceZoomAfterFit = () => {
         const z = map.getZoom();
