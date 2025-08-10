@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v11)</title>
+  <title>B Cellars — Vineyard Map (v15)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -13,8 +13,8 @@
 
   <style>
     :root{
-      --bg:#0b0c10; --panel:#111318; --text:#eef2f7; --muted:#6b7280;
-      --border:#e5e7eb; --brand:#cc4346;
+      --bg:#0b0c10; --panel:#111318; --text:#eef2f7;
+      --muted:#6b7280; --border:#e5e7eb; --brand:#cc4346;
     }
     *{box-sizing:border-box}
     html,body{height:100%; margin:0; overflow:hidden; overscroll-behavior:none; background:var(--bg); color:var(--text); font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,"Apple Color Emoji","Segoe UI Emoji";}
@@ -25,7 +25,7 @@
     /* Sidebar (white theme) */
     .sidebar{background:#ffffff; color:#111318; border-right:1px solid var(--border); display:flex; flex-direction:column; gap:14px; padding:18px; overflow:auto;}
     .brand{display:flex; align-items:center; justify-content:space-between; gap:10px;}
-    .brand h1{font-size:20px; margin:0; color:#111318;}
+    .brand h1{font-size:20px; margin:0; color:#111318; width:100%;}
     .controls{display:flex; gap:8px; flex-wrap:nowrap; align-items:center; justify-content:flex-start;}
     .btn{padding:10px 14px; border-radius:12px; border:1px solid var(--border); background:#f9fafb; color:#111318; font-size:14px; cursor:pointer; text-decoration:none; display:inline-flex; align-items:center; gap:6px;}
     .btn.primary{ background:var(--brand); color:#ffffff; border-color:var(--brand); }
@@ -58,10 +58,8 @@
         <h1>Vineyard Sources</h1>
       </div>
       <div class="controls">
-          <button id="fit-all" class="btn" title="Zoom to all vineyards">Fit all</button>
-          <button id="collapse" class="btn secondary" title="Hide/show sidebar">Collapse</button>
-          
-        </div>
+        <button id="fit-all" class="btn" title="Zoom to all vineyards">Fit all</button>
+        <button id="collapse" class="btn secondary" title="Hide/show sidebar">Collapse</button>
       </div>
       <div class="search">
         <input id="filter" type="search" placeholder="Filter… (Name, SubAVA, Facts)" aria-label="Filter vineyards" />
@@ -85,7 +83,7 @@
       styleUrl: 'mapbox://styles/graham-bcellars/clogch2tt004201oi8i3jgyjy',
       vector: {
         url: 'mapbox://graham-bcellars.clnunbjdd0gcp2nn54qh84xr9-17y6g',
-        sourceLayer: 'vineyard-sources' // confirm exact name in Studio → Inspect
+        sourceLayer: 'vineyard-sources' // Confirm exact name in Studio → Inspect
       },
       dataset: {
         id: 'clnunbjdd0gcp2nn54qh84xr9',
@@ -141,7 +139,6 @@
         let c;
         try { c = turf.centroid(f).geometry.coordinates; } catch(e){ continue; }
         if (!accum.has(nm)){
-          // Choose first non-empty props for SubAVA/Facts/URL
           const p = f.properties || {};
           accum.set(nm, {
             sum:[c[0], c[1]], n:1, bbox:b.slice(),
@@ -156,7 +153,6 @@
           const rec = accum.get(nm);
           rec.sum[0]+=c[0]; rec.sum[1]+=c[1]; rec.n+=1;
           rec.bbox = mergeBbox(rec.bbox, b);
-          // keep existing props
         }
       }
       nameIndex = {};
@@ -217,7 +213,7 @@
           id: 'vineyard-selected-fill',
           type: 'fill',
           source: 'vineyard-polygons',
-          'source-layer': 'Vineyard-Sources',
+          'source-layer': CONFIG.vector.sourceLayer,
           paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.25 },
           filter: ['==', ['get', 'Name'], '___none___']
         }, 'vineyard-outline');
@@ -227,7 +223,7 @@
           id: 'vineyard-selected-line',
           type: 'line',
           source: 'vineyard-polygons',
-          'source-layer': 'Vineyard-Sources',
+          'source-layer': CONFIG.vector.sourceLayer,
           paint: { 'line-color': '#ffffff', 'line-width': 2.5 },
           filter: ['==', ['get', 'Name'], '___none___']
         });
@@ -240,21 +236,31 @@
     }
     function cinematicFly(bbox, center){
       const currentZoom = map.getZoom();
-      const marginFactor = 0.15;
+      const stepOutZoom = 12.5;
+
+      // 15% padding on each side based on viewport size
+      const w = map.getCanvas().clientWidth || 800;
+      const h = map.getCanvas().clientHeight || 600;
+      const pad = {
+        top: Math.round(h * 0.15),
+        bottom: Math.round(h * 0.15),
+        left: Math.round(w * 0.15),
+        right: Math.round(w * 0.15)
+      };
+
       const doFit = () => {
         if (bbox) {
-          // Expand bbox by 15% margin on all sides
-          const dx = (bbox[2] - bbox[0]) * marginFactor;
-          const dy = (bbox[3] - bbox[1]) * marginFactor;
-          const expanded = [bbox[0]-dx, bbox[1]-dy, bbox[2]+dx, bbox[3]+dy];
-          map.fitBounds([[expanded[0], expanded[1]], [expanded[2], expanded[3]]], { padding: 0, maxZoom: 17 });
-          setTimeout(() => map.easeTo({ pitch: 40, duration: 300 }), 50);
+          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, maxZoom: 17 });
+          setTimeout(() => map.easeTo({ pitch: 40, duration: 300 }), 120);
         } else if (center) {
-          map.flyTo({ center, zoom: 17, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
+          const z = Math.min(17, map.getZoom() || 17);
+          map.flyTo({ center, zoom: z, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
         }
       };
+
+      // If already zoomed in tight, zoom out a bit first for context
       if (currentZoom > 15.5) {
-        map.easeTo({ zoom: Math.min(currentZoom, 12.5), duration: 250 });
+        map.easeTo({ zoom: Math.min(currentZoom, stepOutZoom), duration: 250 });
         setTimeout(doFit, 260);
       } else {
         doFit();
@@ -264,8 +270,7 @@
       const rec = nameIndex[name];
       if (!rec) return;
       setHighlight(name);
-      const b = rec.bbox;
-      cinematicFly(b, rec.center);
+      cinematicFly(rec.bbox, rec.center);
       showPopup(name);
       highlightInList(name);
       history.replaceState(null, '', `#id=${encodeURIComponent(name)}`);
@@ -324,8 +329,8 @@
     map.on('load', async () => {
       // Polygons from tileset
       map.addSource('vineyard-polygons', { type:'vector', url: CONFIG.vector.url });
-      map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': 'Vineyard-Sources', paint:{ 'fill-color':'#c64b4b', 'fill-opacity':0.35 } });
-      map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': 'Vineyard-Sources', paint:{ 'line-color':'#c64b4b', 'line-width':1.2 } });
+      map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'fill-color':'#c64b4b', 'fill-opacity':0.35 } });
+      map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'line-color':'#c64b4b', 'line-width':1.2 } });
 
       try {
         await rebuildFromDataset();
@@ -335,7 +340,7 @@
         alert('Failed to load dataset features. Check token or dataset permissions.');
       }
 
-      // Polygon click -> select by Name (with fallbacks on key casing)
+      // Polygon click -> select by Name (fill + outline are clickable)
       ['vineyard-fill','vineyard-outline'].forEach(layer => {
         map.on('click', layer, (e)=>{
           const f = e.features && e.features[0]; if (!f) return;
@@ -345,7 +350,7 @@
         map.on('mouseenter', layer, () => map.getCanvas().style.cursor='pointer');
         map.on('mouseleave', layer, () => map.getCanvas().style.cursor='');
       });
-      
+
       // Deep link
       const m = location.hash.match(/id=([^&]+)/); if (m) setTimeout(()=>selectByName(decodeURIComponent(m[1])), 300);
     });
