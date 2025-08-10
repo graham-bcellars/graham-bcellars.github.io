@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v20)</title>
+  <title>B Cellars — Vineyard Map (v18)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -46,8 +46,7 @@
     .sidebar-toggle-fab .btn{box-shadow:0 6px 20px rgba(0,0,0,.35);}
 
     .mapboxgl-popup{font:14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:2px solid #cc4346; text-align:left;}
-    .mapboxgl-popup-close-button{color:#cc4346; font-size:18px;}
+    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:1px solid #273049; text-align:left;}
 
     @media (max-width:900px){.app{grid-template-columns:1fr;} .sidebar{display:none;} }
   </style>
@@ -61,7 +60,6 @@
       <div class="controls">
         <button id="fit-all" class="btn" title="Zoom to all vineyards">Fit all</button>
         <button id="collapse" class="btn secondary" title="Hide/show sidebar">Collapse</button>
-        <button id="test-style" class="btn secondary" title="Switch to Mapbox Streets temporarily for debugging">Test Style</button>
       </div>
       <div class="search">
         <input id="filter" type="search" placeholder="Filter… (Name, SubAVA, Facts)" aria-label="Filter vineyards" />
@@ -72,7 +70,6 @@
     </aside>
 
     <div id="map" role="region" aria-label="Map of vineyard locations">
-      <div id="diag" style="position:absolute; top:10px; right:10px; z-index:10; max-width:420px; padding:10px 12px; border-radius:10px; background:rgba(204,67,70,.95); color:#fff; font:12px/1.3 system-ui; display:none;"></div>
       <div class="sidebar-toggle-fab" id="sidebar-fab">
         <button class="btn" id="expand-sidebar" title="Show sidebar">Show sidebar</button>
       </div>
@@ -127,28 +124,43 @@
     let namesList = [];
 
     // ===== Utilities =====
-    function collectVarietals(props){
-      const vals = [];
-      for (const k in props){
-        if (/^varietal\s*\d*$/i.test(k)) {
-          const v = props[k];
-          if (v !== undefined && v !== null) {
-            const s = String(v).trim();
-            if (s) vals.push(s);
-          }
-        }
-      }
-      return vals;
-    }
-
     function getName(props){ return (props && (props.Name ?? props.name ?? props.NAME)) ? String(props.Name ?? props.name ?? props.NAME) : null; }
     function mergeBbox(acc, b){
       if (!acc) return b.slice();
       return [Math.min(acc[0], b[0]), Math.min(acc[1], b[1]), Math.max(acc[2], b[2]), Math.max(acc[3], b[3])];
     }
-    
     function buildIndexFromDataset(fc){
-      const accum = new Map(); // name -> { sum:[lng,lat], n:int, bbox:[...], props, varietals:Set }
+      const accum = new Map(); // name -> { sum:[lng,lat], n:int, bbox:[...], props }
+      for (const f of fc.features || []){
+        const nm = getName(f.properties);
+        if (!nm) continue;
+        let b;
+        try { b = turf.bbox(f); } catch(e){ continue; }
+        let c;
+        try { c = turf.centroid(f).geometry.coordinates; } catch(e){ continue; }
+        if (!accum.has(nm)){
+          const p = f.properties || {};
+          accum.set(nm, {
+            sum:[c[0], c[1]], n:1, bbox:b.slice(),
+            props:{
+              Name: nm,
+              SubAVA: p.SubAVA || p.AVA || '',
+              Facts: p.Facts || p.facts || '',
+              URL: p.URL || p.url || ''
+            }
+          });
+        } else {
+          const rec = accum.get(nm);
+          rec.sum[0]+=c[0]; rec.sum[1]+=c[1]; rec.n+=1;
+          rec.bbox = mergeBbox(rec.bbox, b);
+        }
+      }
+      nameIndex = {};
+      for (const [nm, rec] of accum.entries()){
+        const center = [rec.sum[0]/rec.n, rec.sum[1]/rec.n];
+        nameIndex[nm] = { center, bbox: rec.bbox, props: rec.props };
+      }
+    }
     function namesAsFeatureCollection(names){
       return {
         type:'FeatureCollection',
@@ -183,26 +195,13 @@
       document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === name));
       const active = document.querySelector('.item.active'); if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
     }
-    
     function showPopup(name){
       const rec = nameIndex[name]; if (!rec) return;
       const p = rec.props, lngLat = rec.center;
-
-      const varietals = Array.isArray(p.Varietals) ? p.Varietals.filter(Boolean) : [];
-      const vLabel = varietals.length <= 1 ? 'Varietal' : 'Varietals';
-      const varietalLine = varietals.length ? `<div style="margin-top:4px;"><strong>${vLabel}:</strong> ${varietals.join(', ')}</div>` : '';
-
       const html = `
         <div>
-          <div style="font-weight:800; margin-bottom:6px; font-size:16px;">${p.Name || 'Vineyard'}</div>
-          ${p.AVA ? `<div><strong>AVA:</strong> ${p.AVA}</div>` : ''}
-          ${p.SubAVA ? `<div><strong>Sub-AVA:</strong> ${p.SubAVA}</div>` : ''}
-          ${varietalLine}
-          ${p.Facts ? `<div style="margin-top:8px;">${p.Facts}</div>` : ''}
-          ${p.URL ? `<div style="margin-top:10px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
-        </div>`;
-      popup.setLngLat(lngLat).setHTML(html).addTo(map);
-    }
+          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
+          ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
           ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
           ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
         </div>`;
@@ -258,7 +257,7 @@
       const zoomOutDuration = 500; // was 250
       const fitDuration = 700;     // add duration to fit
       const settleDuration = 600;  // was ~350
-      const flySpeed = 0.45;       // was ~0.9
+      const flySpeed = 0.45;       # was ~0.9
 
       const enforceZoomAfterFit = () => {
         const z = map.getZoom();
@@ -344,54 +343,6 @@
         minzoom: 12,
         layout:{ 'text-field':['get','Name'], 'text-size':12, 'text-offset':[0,1.1], 'text-anchor':'top', 'text-allow-overlap': true },
         paint:{ 'text-color':'#eef2f7', 'text-halo-color':'#0b0c10', 'text-halo-width':1.2 }
-      });
-    }
-
-    
-    // ===== Diagnostics (v20) =====
-    const diag = document.getElementById('diag');
-    function showDiag(msg){
-      if (!diag) return;
-      diag.style.display = 'block';
-      diag.innerHTML = msg;
-      console.error('[Map Diagnostics]', msg);
-    }
-    function hideDiag(){ if (diag) { diag.style.display='none'; diag.textContent=''; } }
-
-    // Surface Mapbox errors
-    map.on('error', (e) => {
-      const err = e && e.error;
-      let msg = 'An error occurred loading the map.';
-      if (err) {
-        msg += '<br><code>' + (err.message || String(err)) + '</code>';
-      }
-      msg += '<div style="margin-top:6px; opacity:.9;">Check token, style URL, tileset URL, and source-layer ("' + CONFIG.vector.sourceLayer + '").</div>';
-      showDiag(msg);
-    });
-
-    // Test Style button: swap to Streets and rebuild vineyard layers/sources
-    const testBtn = document.getElementById('test-style');
-    if (testBtn) {
-      testBtn.addEventListener('click', () => {
-        hideDiag();
-        try {
-          const center = map.getCenter(); const zoom = map.getZoom(); const pitch = map.getPitch(); const bearing = map.getBearing();
-          map.setStyle('mapbox://styles/mapbox/streets-v12');
-          map.once('styledata', async () => {
-            try {
-              if (!map.getSource('vineyard-polygons')) map.addSource('vineyard-polygons', { type:'vector', url: CONFIG.vector.url });
-              if (!map.getLayer('vineyard-fill')) map.addLayer({ id:'vineyard-fill', type:'fill', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'fill-color':'#c64b4b', 'fill-opacity':0.35 } });
-              if (!map.getLayer('vineyard-outline')) map.addLayer({ id:'vineyard-outline', type:'line', source:'vineyard-polygons', 'source-layer': CONFIG.vector.sourceLayer, paint:{ 'line-color':'#c64b4b', 'line-width':1.2 } });
-              ensureHighlightLayers();
-              await rebuildFromDataset();
-            } catch (e) {
-              showDiag('Failed to rebuild layers after style swap: ' + e);
-            }
-            map.easeTo({ center, zoom, pitch, bearing, duration: 0 });
-          });
-        } catch (e) {
-          showDiag('Style swap failed: ' + e);
-        }
       });
     }
 
