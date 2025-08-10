@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v20)</title>
+  <title>B Cellars — Vineyard Map (v21)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -259,7 +259,7 @@
       const enforceZoomAfterFit = () => {
         const z = map.getZoom();
         // Zoom out a bit from the fitted zoom to ensure whole polygon(s) are visible
-        const finalZ = Math.max((z || 17) - 0.3, 12);
+        const finalZ = Math.max((z || 17) - 0.0, 12);
         map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: 350 });
       };
 
