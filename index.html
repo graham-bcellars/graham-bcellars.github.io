@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v15)</title>
+  <title>B Cellars — Vineyard Map (v16)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -215,7 +215,7 @@
           source: 'vineyard-polygons',
           'source-layer': CONFIG.vector.sourceLayer,
           paint: { 'fill-color': '#ffffff', 'fill-opacity': 0.25 },
-          filter: ['==', ['get', 'Name'], '___none___']
+          filter: ['==', ['coalesce', ['get','Name'], ['get','name'], ['get','NAME']], '___none___']
         }, 'vineyard-outline');
       }
       if (!map.getLayer('vineyard-selected-line')) {
@@ -225,14 +225,15 @@
           source: 'vineyard-polygons',
           'source-layer': CONFIG.vector.sourceLayer,
           paint: { 'line-color': '#ffffff', 'line-width': 2.5 },
-          filter: ['==', ['get', 'Name'], '___none___']
+          filter: ['==', ['coalesce', ['get','Name'], ['get','name'], ['get','NAME']], '___none___']
         });
       }
     }
     function setHighlight(name){
       ensureHighlightLayers();
-      map.setFilter('vineyard-selected-fill', ['==', ['get','Name'], name]);
-      map.setFilter('vineyard-selected-line', ['==', ['get','Name'], name]);
+      const nameExpr = ['coalesce', ['get','Name'], ['get','name'], ['get','NAME']];
+      map.setFilter('vineyard-selected-fill', ['==', nameExpr, name]);
+      map.setFilter('vineyard-selected-line', ['==', nameExpr, name]);
     }
     function cinematicFly(bbox, center){
       const currentZoom = map.getZoom();
@@ -250,10 +251,10 @@
 
       const doFit = () => {
         if (bbox) {
-          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, maxZoom: 17 });
+          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, maxZoom: 18.5 });
           setTimeout(() => map.easeTo({ pitch: 40, duration: 300 }), 120);
         } else if (center) {
-          const z = Math.min(17, map.getZoom() || 17);
+          const z = Math.min(18.5, map.getZoom() || 18.5);
           map.flyTo({ center, zoom: z, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
         }
       };
