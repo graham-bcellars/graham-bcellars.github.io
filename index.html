@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v16)</title>
+  <title>B Cellars — Vineyard Map (v17)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -235,11 +235,13 @@
       map.setFilter('vineyard-selected-fill', ['==', nameExpr, name]);
       map.setFilter('vineyard-selected-line', ['==', nameExpr, name]);
     }
+    
     function cinematicFly(bbox, center){
       const currentZoom = map.getZoom();
       const stepOutZoom = 12.5;
+      const targetZoom = 18.0; // desired close-up zoom
 
-      // 15% padding on each side based on viewport size
+      // 15% padding based on viewport size
       const w = map.getCanvas().clientWidth || 800;
       const h = map.getCanvas().clientHeight || 600;
       const pad = {
@@ -249,13 +251,26 @@
         right: Math.round(w * 0.15)
       };
 
+      const enforceZoomAfterFit = () => {
+        const z = map.getZoom();
+        const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
+        const finalZ = Math.min(targetZoom, maxZ);
+        if (z < finalZ - 0.01) {
+          map.easeTo({ zoom: finalZ, pitch: 40, duration: 350 });
+        } else {
+          map.easeTo({ pitch: 40, duration: 300 });
+        }
+      };
+
       const doFit = () => {
         if (bbox) {
-          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, maxZoom: 18.5 });
-          setTimeout(() => map.easeTo({ pitch: 40, duration: 300 }), 120);
+          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad });
+          // Give fit a moment, then enforce zoom
+          setTimeout(enforceZoomAfterFit, 180);
         } else if (center) {
-          const z = Math.min(18.5, map.getZoom() || 18.5);
-          map.flyTo({ center, zoom: z, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
+          const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
+          const finalZ = Math.min(targetZoom, maxZ);
+          map.flyTo({ center, zoom: finalZ, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
         }
       };
 
