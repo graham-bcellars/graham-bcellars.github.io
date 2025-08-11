@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v22)</title>
+  <title>B Cellars — Vineyard Map (v23)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -253,6 +253,11 @@
         right: Math.round(w * 0.15)
       };
 
+      // Animation pacing variables (slower, smoother)
+      const zoomOutDuration = 500;   // ms
+      const fitDuration = 800;        // ms
+      const settleDuration = 650;     // ms
+
       // Compute bbox center for deterministic centering
       const bboxCenter = bbox ? [ (bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2 ] : center;
 
@@ -260,24 +265,24 @@
         const z = map.getZoom();
         // Zoom out a bit from the fitted zoom to ensure whole polygon(s) are visible
         const finalZ = Math.max((z || 17) + 0.3, 12);
-        map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: 350 });
+        map.easeTo({ center: bboxCenter || center, zoom: finalZ, pitch: 40, duration: settleDuration });
       };
 
       const doFit = () => {
         if (bbox) {
           // Fit bounds first with padding; then nudge out and re-center precisely
-          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad });
-          setTimeout(enforceZoomAfterFit, 200);
+          map.fitBounds([[bbox[0], bbox[1]], [bbox[2], bbox[3]]], { padding: pad, duration: fitDuration });
+          setTimeout(enforceZoomAfterFit, fitDuration + 60);
         } else if (center) {
           const maxZ = map.getMaxZoom ? map.getMaxZoom() : 22;
           const finalZ = Math.min(targetZoom, maxZ);
-          map.flyTo({ center, zoom: finalZ, pitch: 40, speed: 0.9, curve: 1.4, essential: true });
+          map.flyTo({ center, zoom: finalZ, pitch: 40, speed: 0.4, curve: 1.3, essential: true });
         }
       };
 
       // If already zoomed in tight, zoom out a bit first for context
       if (currentZoom > 15.5) {
-        map.easeTo({ zoom: Math.min(currentZoom, stepOutZoom), duration: 250 });
+        map.easeTo({ zoom: Math.min(currentZoom, stepOutZoom), duration: zoomOutDuration });
         setTimeout(doFit, 260);
       } else {
         doFit();
