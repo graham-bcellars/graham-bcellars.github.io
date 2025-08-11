@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (v23)</title>
+  <title>B Cellars — Vineyard Map (v27)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -254,9 +254,9 @@
       };
 
       // Animation pacing variables (slower, smoother)
-      const zoomOutDuration = 500;   // ms
-      const fitDuration = 800;        // ms
-      const settleDuration = 650;     // ms
+      const zoomOutDuration = 700;   // ms
+      const fitDuration = 1000;        // ms
+      const settleDuration = 850;     // ms
 
       // Compute bbox center for deterministic centering
       const bboxCenter = bbox ? [ (bbox[0]+bbox[2])/2, (bbox[1]+bbox[3])/2 ] : center;
