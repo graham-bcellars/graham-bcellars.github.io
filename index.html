@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (Baseline v2)</title>
+  <title>B Cellars — Vineyard Map (Baseline v3)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -46,20 +46,42 @@
     .sidebar-toggle-fab .btn{box-shadow:0 6px 20px rgba(0,0,0,.35);}
 
     .mapboxgl-popup{font:14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:1px solid #273049; text-align:left;}
-
-    @media (max-width:900px){.app{grid-template-columns:1fr;} .sidebar{display:none;} }
-  
+    
 .mapboxgl-popup-content {
     background: white;
     border: 2px solid #cc4346;
     color: black;
-    padding: 10%;
+    padding: 5%;
+    border-radius: 6px;
+}
+
+    @media (max-width:900px){.app{grid-template-columns:1fr;} .sidebar{display:none;} }
+  
+
+.mapboxgl-popup-content {
+    background: white;
+    border: 2px solid #cc4346;
+    color: black;
+    padding: 5%;
+    border-radius: 6px;
+}
+.mapboxgl-popup-close-button { color: black; font-size: 16px; }
+
+
+.mapboxgl-popup-content {
+    background: white;
+    border: 2px solid #cc4346;
+    color: black;
+    padding: 5%;
     border-radius: 6px;
 }
 .mapboxgl-popup-close-button {
     color: black;
     font-size: 16px;
+}
+.mapboxgl-popup-content h3 {
+    text-align: center;
+    margin-top: 0;
 }
 
 </style>
