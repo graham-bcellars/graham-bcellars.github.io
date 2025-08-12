@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>B Cellars — Vineyard Map (Baseline v1)</title>
+  <title>B Cellars — Vineyard Map (Baseline v4_safe)</title>
 
   <!-- Mapbox GL JS -->
   <script src="https://api.tiles.mapbox.com/mapbox-gl-js/v3.6.0/mapbox-gl.js"></script>
@@ -46,10 +46,45 @@
     .sidebar-toggle-fab .btn{box-shadow:0 6px 20px rgba(0,0,0,.35);}
 
     .mapboxgl-popup{font:14px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial;}
-    .mapboxgl-popup-content{border-radius:12px; padding:10px 12px; background:#0f1219; color:#eef2f7; border:1px solid #273049; text-align:left;}
+    
+.mapboxgl-popup-content {
+    background: white;
+    border: 2px solid #cc4346;
+    color: black;
+    padding: 5%;
+    border-radius: 6px;
+}
 
     @media (max-width:900px){.app{grid-template-columns:1fr;} .sidebar{display:none;} }
-  </style>
+  
+
+.mapboxgl-popup-content {
+    background: white;
+    border: 2px solid #cc4346;
+    color: black;
+    padding: 5%;
+    border-radius: 6px;
+}
+.mapboxgl-popup-close-button { color: black; font-size: 16px; }
+
+
+.mapboxgl-popup-content {
+    background: white;
+    border: 2px solid #cc4346;
+    color: black;
+    padding: 5%;
+    border-radius: 6px;
+}
+.mapboxgl-popup-close-button {
+    color: black;
+    font-size: 16px;
+}
+.mapboxgl-popup-content h3 {
+    text-align: center;
+    margin-top: 0;
+}
+
+</style>
 </head>
 <body>
   <div class="app">
@@ -195,12 +230,39 @@
       document.querySelectorAll('.item').forEach(el => el.classList.toggle('active', el.dataset.id === name));
       const active = document.querySelector('.item.active'); if (active) active.scrollIntoView({block:'nearest', behavior:'smooth'});
     }
-    function showPopup(name){
+    
+function showPopup(name){
       const rec = nameIndex[name]; if (!rec) return;
-      const p = rec.props, lngLat = rec.center;
+      const p = rec.props || {}; 
+      const lngLat = rec.center;
+
+      // Prefer SubAVA, fall back to AVA
+      const avaText = p.SubAVA ? `AVA: ${p.SubAVA}` : (p.AVA ? `AVA: ${p.AVA}` : '');
+
+      // Collect varietals from keys like "Varietal 1", "Varietal 2", ...
+      const varietals = [];
+      if (p) {
+        for (const k of Object.keys(p)) {
+          if (/^varietal\s+\d+$/i.test(k) && p[k] != null) {
+            const val = String(p[k]).trim();
+            if (val) varietals.push(val);
+          }
+        }
+      }
+      const vLabel = varietals.length > 1 ? 'Varietals' : 'Varietal';
+      const varietalLine = varietals.length ? `${vLabel}: ${varietals.join(', ')}` : '';
+
       const html = `
-        <div>
-          <div style="font-weight:700; margin-bottom:4px;">${p.Name || 'Vineyard'}</div>
+        <h3>${p.Name || 'Vineyard'}</h3>
+        ${avaText ? `<div>${avaText}</div>` : ''}
+        ${varietalLine ? `<div>${varietalLine}</div>` : ''}
+        ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
+        ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
+      `;
+      popup.setLngLat(lngLat).setHTML(html).addTo(map);
+    }
+
+</div>
           ${p.SubAVA ? `<div style="font-size:12px; opacity:.8;">${p.SubAVA}</div>` : ''}
           ${p.Facts ? `<div style="margin-top:6px;">${p.Facts}</div>` : ''}
           ${p.URL ? `<div style="margin-top:8px;"><a class="btn" href="${p.URL}" target="_blank" rel="noopener">Learn more →</a></div>` : ''}
